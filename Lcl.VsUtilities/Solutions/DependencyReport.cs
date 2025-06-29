@@ -8,170 +8,154 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
-namespace Lcl.VsUtilities.Solutions
+namespace Lcl.VsUtilities.Solutions;
+
+/// <summary>
+/// Create forward or reverse dependency "trees"
+/// </summary>
+public static class DependencyReport
 {
   /// <summary>
-  /// Create forward or reverse dependency "trees"
+  /// Create forward dependency trees for all projects in the graph
   /// </summary>
-  public static class DependencyReport
+  public static Dictionary<Guid, DependsOnNode> MakeDependsOnReport(ProjectDependencyGraph pdg)
   {
-    /// <summary>
-    /// Create forward dependency trees for all projects in the graph
-    /// </summary>
-    public static Dictionary<Guid, DependsOnNode> MakeDependsOnReport(ProjectDependencyGraph pdg)
+    var report = new Dictionary<Guid, DependsOnNode>();
+    foreach(var pn in pdg.Nodes)
     {
-      var report = new Dictionary<Guid, DependsOnNode>();
-      foreach (var pn in pdg.Nodes)
-      {
-        GetDependsOnNode(report, pn, 32);
-      }
-      return report;
+      GetDependsOnNode(report, pn, 32);
     }
-
-    /// <summary>
-    /// Create reverse dependency trees for all projects in the graph
-    /// </summary>
-    public static Dictionary<Guid, DependentOfNode> MakeDependentOfReport(ProjectDependencyGraph pdg)
-    {
-      var report = new Dictionary<Guid, DependentOfNode>();
-      foreach (var pn in pdg.Nodes)
-      {
-        GetDependentOfNode(report, pn, 32);
-      }
-      return report;
-    }
-
-    private static DependsOnNode GetDependsOnNode(
-      Dictionary<Guid, DependsOnNode> cache, ProjectNode source, int maxRecurse)
-    {
-      DependsOnNode dn;
-      if (cache.TryGetValue(source.Id, out dn))
-      {
-        return dn;
-      }
-      if (maxRecurse <= 0)
-      {
-        throw new InvalidOperationException("Recursion limit exceeded");
-      }
-      var list = new List<DependsOnNode>();
-      foreach (var child in source.DependsOn)
-      {
-        list.Add(GetDependsOnNode(cache, child, maxRecurse - 1));
-      }
-      dn = new DependsOnNode(source.Project.Label, list);
-      cache[source.Id] = dn;
-      return dn;
-    }
-
-    private static DependentOfNode GetDependentOfNode(
-      Dictionary<Guid, DependentOfNode> cache, ProjectNode source, int maxRecurse)
-    {
-      DependentOfNode dn;
-      if (cache.TryGetValue(source.Id, out dn))
-      {
-        return dn;
-      }
-      if (maxRecurse <= 0)
-      {
-        throw new InvalidOperationException("Recursion limit exceeded");
-      }
-      var list = new List<DependentOfNode>();
-      foreach (var child in source.DependentOf)
-      {
-        list.Add(GetDependentOfNode(cache, child, maxRecurse - 1));
-      }
-      dn = new DependentOfNode(source.Project.Label, list);
-      cache[source.Id] = dn;
-      return dn;
-    }
+    return report;
   }
 
   /// <summary>
-  /// Minimalistic node in dependency hierarchy for JSON serialization
+  /// Create reverse dependency trees for all projects in the graph
   /// </summary>
-  public class DependsOnNode
+  public static Dictionary<Guid, DependentOfNode> MakeDependentOfReport(ProjectDependencyGraph pdg)
   {
-    /// <summary>
-    /// Create a DependsOnNode
-    /// </summary>
-    public DependsOnNode(
-      string name,
-      IEnumerable<DependsOnNode> dependsOn)
+    var report = new Dictionary<Guid, DependentOfNode>();
+    foreach(var pn in pdg.Nodes)
     {
-      Name = name;
-      DependsOn = dependsOn==null ? null : new List<DependsOnNode>(dependsOn).AsReadOnly();
-      if(DependsOn!=null && DependsOn.Count==0)
-      {
-        DependsOn = null;
-      }
+      GetDependentOfNode(report, pn, 32);
     }
+    return report;
+  }
 
-    /// <summary>
-    /// The project name
-    /// </summary>
-    public string Name { get; }
-
-    /// <summary>
-    /// The dependencies, possibly null
-    /// </summary>
-    public IReadOnlyList<DependsOnNode> DependsOn { get; }
-
-    /// <summary>
-    /// Create a dense representation of this node. Note that the return type is actually
-    /// the the infinitely recursive type Dictionary{string,Dictionary{string,Dictionary{string,...}}}
-    /// </summary>
-    public Dictionary<string, object> DenseRepresentation()
+  private static DependsOnNode GetDependsOnNode(
+    Dictionary<Guid, DependsOnNode> cache, ProjectNode source, int maxRecurse)
+  {
+    if(cache.TryGetValue(source.Id, out var dn))
     {
-      var ret = new Dictionary<string, object>();
-      ret[Name] = DenseContentRepresentation();
-      return ret;
+      return dn;
     }
-
-    private Dictionary<string,object> DenseContentRepresentation()
+    if(maxRecurse <= 0)
     {
-      var ret = new Dictionary<string, object>();
-      if(DependsOn!=null)
-      {
-        foreach (var n in DependsOn)
-        {
-          ret[n.Name] = n.DenseContentRepresentation();
-        }
-      }
-      return ret;
+      throw new InvalidOperationException("Recursion limit exceeded");
     }
+    var list = new List<DependsOnNode>();
+    foreach(var child in source.DependsOn)
+    {
+      list.Add(GetDependsOnNode(cache, child, maxRecurse - 1));
+    }
+    dn = new DependsOnNode(source.Project.Label, list);
+    cache[source.Id] = dn;
+    return dn;
+  }
+
+  private static DependentOfNode GetDependentOfNode(
+    Dictionary<Guid, DependentOfNode> cache, ProjectNode source, int maxRecurse)
+  {
+    if(cache.TryGetValue(source.Id, out var dn))
+    {
+      return dn;
+    }
+    if(maxRecurse <= 0)
+    {
+      throw new InvalidOperationException("Recursion limit exceeded");
+    }
+    var list = new List<DependentOfNode>();
+    foreach(var child in source.DependentOf)
+    {
+      list.Add(GetDependentOfNode(cache, child, maxRecurse - 1));
+    }
+    dn = new DependentOfNode(source.Project.Label, list);
+    cache[source.Id] = dn;
+    return dn;
+  }
+}
+
+/// <summary>
+/// Minimalistic node in dependency hierarchy for JSON serialization
+/// </summary>
+public class DependsOnNode
+{
+  /// <summary>
+  /// Create a DependsOnNode
+  /// </summary>
+  public DependsOnNode(
+    string name,
+    IEnumerable<DependsOnNode> dependsOn)
+  {
+    Name = name;
+    DependsOn = new List<DependsOnNode>(dependsOn).AsReadOnly();
   }
 
   /// <summary>
-  /// Minimalistic node in reverse dependency hierarchy for JSON serialization
+  /// The project name
   /// </summary>
-  public class DependentOfNode
+  public string Name { get; }
+
+  /// <summary>
+  /// The dependencies, possibly null
+  /// </summary>
+  public IReadOnlyList<DependsOnNode> DependsOn { get; }
+
+  /// <summary>
+  /// Create a dense representation of this node. Note that the return type is actually
+  /// the the infinitely recursive type Dictionary{string,Dictionary{string,Dictionary{string,...}}}
+  /// </summary>
+  public Dictionary<string, object> DenseRepresentation()
   {
-    /// <summary>
-    /// Create a DependsOnNode
-    /// </summary>
-    public DependentOfNode(
-      string name,
-      IEnumerable<DependentOfNode> dependsOn)
-    {
-      Name = name;
-      DependentOf = dependsOn == null ? null : new List<DependentOfNode>(dependsOn).AsReadOnly();
-      if (DependentOf != null && DependentOf.Count == 0)
-      {
-        DependentOf = null;
-      }
-    }
-
-    /// <summary>
-    /// The project name
-    /// </summary>
-    public string Name { get; }
-
-    /// <summary>
-    /// The dependencies, possibly null
-    /// </summary>
-    public IReadOnlyList<DependentOfNode> DependentOf { get; }
+    var ret = new Dictionary<string, object>();
+    ret[Name] = DenseContentRepresentation();
+    return ret;
   }
 
+  private Dictionary<string, object> DenseContentRepresentation()
+  {
+    var ret = new Dictionary<string, object>();
+    foreach(var n in DependsOn)
+    {
+      ret[n.Name] = n.DenseContentRepresentation();
+    }
+    return ret;
+  }
+}
 
+/// <summary>
+/// Minimalistic node in reverse dependency hierarchy for JSON serialization
+/// </summary>
+public class DependentOfNode
+{
+  /// <summary>
+  /// Create a DependsOnNode
+  /// </summary>
+  public DependentOfNode(
+    string name,
+    IEnumerable<DependentOfNode> dependsOn)
+  {
+    Name = name;
+    DependentOf = new List<DependentOfNode>(dependsOn).AsReadOnly();
+  }
+
+  /// <summary>
+  /// The project name
+  /// </summary>
+  public string Name { get; }
+
+  /// <summary>
+  /// The dependencies, possibly null
+  /// </summary>
+  public IReadOnlyList<DependentOfNode> DependentOf { get; }
 }
 
