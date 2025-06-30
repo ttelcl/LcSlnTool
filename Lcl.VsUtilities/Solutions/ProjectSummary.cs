@@ -26,7 +26,9 @@ public class ProjectSummary
     string treePath,
     string projectPath,
     Guid id,
-    IReadOnlyDictionary<string, bool> references)
+    IReadOnlyDictionary<string, bool> references,
+    string? sdk,
+    IEnumerable<string> frameworks)
   {
     Name = name;
     TreePath = treePath;
@@ -36,8 +38,13 @@ public class ProjectSummary
       kvp => kvp.Key,
       kvp => kvp.Value,
       StringComparer.OrdinalIgnoreCase);
+    Sdk = sdk;
+    Frameworks = frameworks.ToList().AsReadOnly();
   }
 
+  /// <summary>
+  /// Create a summary from project details
+  /// </summary>
   public static ProjectSummary? FromProject(
     ProjectDetails project,
     ProjectDependencyGraph graph)
@@ -80,7 +87,9 @@ public class ProjectSummary
       treePath,
       project.Meta.Path,
       id,
-      references);
+      references,
+      prf.Sdk,
+      prf.Frameworks);
   }
 
   /// <summary>
@@ -113,4 +122,16 @@ public class ProjectSummary
   /// </summary>
   [JsonProperty("references")]
   public IReadOnlyDictionary<string, bool> References { get; }
+
+  /// <summary>
+  /// The SDK used by this project, if known
+  /// </summary>
+  [JsonProperty("sdk")]
+  public string? Sdk {  get; }
+
+  /// <summary>
+  /// The target frameworks, if known
+  /// </summary>
+  [JsonProperty("frameworks")]
+  public IReadOnlyList<string> Frameworks { get; }
 }

@@ -77,7 +77,11 @@ public class Solution
     ProjectDependencyGraph graph)
   {
     var map = new Dictionary<string, ProjectSummary>(StringComparer.OrdinalIgnoreCase);
-    foreach(var project in Projects)
+    var projects =
+      from project in Projects
+      orderby project.Label
+      select project;
+    foreach(var project in projects)
     {
       var summary = ProjectSummary.FromProject(project, graph);
       if(summary != null)

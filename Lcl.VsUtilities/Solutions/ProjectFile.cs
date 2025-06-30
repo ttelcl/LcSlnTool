@@ -24,11 +24,12 @@ public class ProjectFile
   /// </summary>
   public ProjectFile(
     IEnumerable<ProjectReference> prjrefs,
-    string? sdk)
+    string? sdk,
+    IEnumerable<string> frameworks)
   {
     Sdk = sdk;
-    var pr = new List<ProjectReference>(prjrefs);
-    ProjectReferences = pr.AsReadOnly();
+    ProjectReferences = prjrefs.ToList().AsReadOnly();
+    Frameworks = frameworks.ToList().AsReadOnly();
   }
 
   /// <summary>
@@ -40,6 +41,11 @@ public class ProjectFile
   /// The SDK name for SDK style projects, or null for legacy and dummy projects.
   /// </summary>
   public string? Sdk { get; }
+
+  /// <summary>
+  /// Target framework(s)
+  /// </summary>
+  public IReadOnlyList<string> Frameworks { get; }
 
   const string MsbuildNamespace = "http://schemas.microsoft.com/developer/msbuild/2003";
 
@@ -72,7 +78,14 @@ public class ProjectFile
           var project = Guid.Parse(projectText);
           prjrefs.Add(new ProjectReference(name, /*project,*/ include));
         }
-        return new ProjectFile(prjrefs, null);
+        var targetNodes = root.Select("//msb:TargetFrameworkVersion", nsm);
+        var targets = new HashSet<string>();
+        foreach(XPathNavigator targetNode in targetNodes)
+        {
+          var txt = (string)targetNode.Evaluate("string(.)", nsm);
+          targets.Add(txt);
+        }
+        return new ProjectFile(prjrefs, null, targets);
       }
       else
       {
@@ -97,7 +110,29 @@ public class ProjectFile
           }
           prjrefs.Add(new ProjectReference(name, include));
         }
-        return new ProjectFile(prjrefs, sdk);
+        var targetNodes = projectNodeSdk.Select("PropertyGroup/TargetFrameworks");
+        var targets = new HashSet<string>();
+        foreach(XPathNavigator targetNode in targetNodes)
+        {
+          var txt = (string)targetNode.Evaluate("string(.)", nsm);
+          if(!String.IsNullOrEmpty(txt))
+          {
+            foreach(var target in txt.Split(';'))
+            {
+              targets.Add(target.Trim());
+            }
+          }
+        }
+        targetNodes = projectNodeSdk.Select("PropertyGroup/TargetFramework");
+        foreach(XPathNavigator targetNode in targetNodes)
+        {
+          var txt = (string)targetNode.Evaluate("string(.)", nsm);
+          if(!String.IsNullOrEmpty(txt))
+          {
+            targets.Add(txt);
+          }
+        }
+        return new ProjectFile(prjrefs, sdk, targets);
       }
     }
     catch (Exception ex)

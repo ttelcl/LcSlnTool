@@ -37,8 +37,7 @@ public class SolutionTests
   [Fact]
   public void CanloadSelfSolution()
   {
-    var slnPath = Path.GetFullPath(
-      "..\\..\\..\\..\\LcSlnTool.sln");
+    var slnPath = Path.GetFullPath("..\\..\\..\\..\\LcSlnTool.sln");
     Assert.True(File.Exists(slnPath));
 
     var solution = new Solution(slnPath);
@@ -48,8 +47,8 @@ public class SolutionTests
   [Fact]
   public void CanDetermineDependencies()
   {
-    var slnPath = Path.GetFullPath(
-      "..\\..\\..\\..\\LcSlnTool.sln");
+    var slnPath = Path.GetFullPath("..\\..\\..\\..\\LcSlnTool.sln");
+
     Assert.True(File.Exists(slnPath));
     DetermineDependencies(slnPath);
   }
