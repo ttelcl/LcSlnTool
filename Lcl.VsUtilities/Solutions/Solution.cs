@@ -68,5 +68,25 @@ public class Solution
   //  return _projectMap.TryGetValue(id, out var pd) ? pd : null;
   //}
 
+  /// <summary>
+  /// Build the JSON serializable project summaries and collect them in a map
+  /// </summary>
+  /// <param name="graph"></param>
+  /// <returns></returns>
+  public IReadOnlyDictionary<string, ProjectSummary> BuildProjectSummaries(
+    ProjectDependencyGraph graph)
+  {
+    var map = new Dictionary<string, ProjectSummary>(StringComparer.OrdinalIgnoreCase);
+    foreach(var project in Projects)
+    {
+      var summary = ProjectSummary.FromProject(project, graph);
+      if(summary != null)
+      {
+        map[summary.Name] = summary;
+      }
+    }
+    return map;
+  }
+
 }
 
