@@ -21,7 +21,7 @@ public class ProjectDetails
   public ProjectDetails(SolutionProjectInfo spi, ProjectFile? prjf=null)
   {
     Meta = spi;
-    Content = prjf ?? new ProjectFile(null);
+    Content = prjf ?? new ProjectFile([], null);
     IsStub = prjf == null;
   }
 
