@@ -34,6 +34,8 @@ public class ProjectFile
   /// </summary>
   public IReadOnlyList<ProjectReference> ProjectReferences { get; }
 
+  const string MsbuildNamespace = "http://schemas.microsoft.com/developer/msbuild/2003";
+
   /// <summary>
   /// Load a project file
   /// </summary>
@@ -49,7 +51,7 @@ public class ProjectFile
       var doc = new XPathDocument(filename);
       var root = doc.CreateNavigator();
       var nsm = new XmlNamespaceManager(root.NameTable);
-      nsm.AddNamespace("msb", "http://schemas.microsoft.com/developer/msbuild/2003");
+      nsm.AddNamespace("msb", MsbuildNamespace);
       var projectReferences = root.Select("//msb:ProjectReference", nsm);
       var prjrefs = new List<ProjectReference>();
       foreach (XPathNavigator node in projectReferences)

@@ -28,6 +28,7 @@ public class SolutionProjectInfo
     string path,
     Guid projectId)
   {
+    ChildProjects = [];
     ProjectTypeId = projectTypeId;
     Label = label;
     Path = path;
@@ -95,5 +96,16 @@ public class SolutionProjectInfo
   /// </summary>
   public string ProjectTypeName => ProjectTypes.ProjectTypeName(ProjectTypeId);
 
+  /// <summary>
+  /// The solution folder 'project' this project is in, or null
+  /// if it is not in a Solution Folder.
+  /// </summary>
+  public SolutionProjectInfo? SolutionFolderProject { get; set; }
+
+  /// <summary>
+  /// If this is a Solution Folder project, this list contains the projects
+  /// in that solution folder
+  /// </summary>
+  public List<SolutionProjectInfo> ChildProjects { get; }
 }
 
