@@ -16,7 +16,7 @@ namespace Lcl.VsUtilities.Solutions;
 public class Solution
 {
   private List<ProjectDetails> _projectList;
-  private Dictionary<Guid, ProjectDetails> _projectMap;
+  //private Dictionary<Guid, ProjectDetails> _projectMap;
 
   /// <summary>
   /// Create a new Solution from a pre-loaded SolutionInfo,
@@ -26,13 +26,13 @@ public class Solution
   {
     Info = si;
     _projectList = new List<ProjectDetails>();
-    _projectMap = new Dictionary<Guid, ProjectDetails>();
+    //_projectMap = new Dictionary<Guid, ProjectDetails>();
     Projects = _projectList.AsReadOnly();
     foreach(var spi in Info.Projects)
     {
       var details = Info.LoadProject(spi, true)!;
       _projectList.Add(details);
-      _projectMap[details.Id] = details;
+      //_projectMap[details.Id] = details;
     }
 
   }
@@ -60,13 +60,13 @@ public class Solution
   /// </summary>
   public IReadOnlyList<ProjectDetails> Projects { get; }
 
-  /// <summary>
-  /// Try to find project information by project Id, returning null if not found
-  /// </summary>
-  public ProjectDetails? FindProjectById(Guid id)
-  {
-    return _projectMap.TryGetValue(id, out var pd) ? pd : null;
-  }
+  ///// <summary>
+  ///// Try to find project information by project Id, returning null if not found
+  ///// </summary>
+  //public ProjectDetails? FindProjectById(Guid id)
+  //{
+  //  return _projectMap.TryGetValue(id, out var pd) ? pd : null;
+  //}
 
 }
 

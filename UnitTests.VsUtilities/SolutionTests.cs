@@ -44,4 +44,18 @@ public class SolutionTests
     var solution = new Solution(slnPath);
     Assert.NotNull(solution);
   }
+
+  [Fact]
+  public void CanDetermineDependencies()
+  {
+    var slnPath = Path.GetFullPath(
+      "..\\..\\..\\..\\LcSlnTool.sln");
+    Assert.True(File.Exists(slnPath));
+
+    var solution = new Solution(slnPath);
+    Assert.NotNull(solution);
+
+    var graph = new ProjectDependencyGraph(solution);
+    Assert.NotNull(graph);
+  }
 }

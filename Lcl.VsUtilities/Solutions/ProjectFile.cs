@@ -82,23 +82,21 @@ public class ProjectFile
           throw new InvalidOperationException(
             $"Unrecognized project format in project file {filename}");
         }
+        root = doc.CreateNavigator();
         var sdk = projectNodeSdk.GetAttribute("Sdk", String.Empty);
         var prjrefs = new List<ProjectReference>();
-        var projectReferences = root.Select("//ProjectReference", nsm);
+        var projectReferences = root.Select("//ProjectReference");
         foreach(XPathNavigator node in projectReferences)
         {
           var include = node.GetAttribute("Include", "");
-          //var projectText = (string)node.Evaluate("string(msb:Project)", nsm);
           var name = (string?)node.Evaluate("string(Name)", nsm);
           if(String.IsNullOrEmpty(name))
           {
             // This is the expected code path.
             name = Path.GetFileNameWithoutExtension(include);
           }
-          //var project = Guid.Parse(projectText);
-          prjrefs.Add(new ProjectReference(name, /*project,*/ include));
+          prjrefs.Add(new ProjectReference(name, include));
         }
-        // TODO: fill prjrefs
         return new ProjectFile(prjrefs, sdk);
       }
     }

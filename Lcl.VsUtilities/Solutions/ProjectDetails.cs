@@ -50,10 +50,10 @@ public class ProjectDetails
   /// </summary>
   public string ProjectTypeName { get { return ProjectTypes.ProjectTypeName(ProjectTypeId); } }
 
-  /// <summary>
-  /// Identifies the project (forwarded from Meta)
-  /// </summary>
-  public Guid Id { get { return Meta.Id; } }
+  ///// <summary>
+  ///// Identifies the project (forwarded from Meta)
+  ///// </summary>
+  //public Guid Id { get { return Meta.Id; } }
 
   /// <summary>
   /// Name for the project (forwarded from Meta)
