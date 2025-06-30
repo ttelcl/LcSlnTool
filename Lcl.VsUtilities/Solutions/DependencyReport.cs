@@ -18,9 +18,9 @@ public static class DependencyReport
   /// <summary>
   /// Create forward dependency trees for all projects in the graph
   /// </summary>
-  public static Dictionary<Guid, DependsOnNode> MakeDependsOnReport(ProjectDependencyGraph pdg)
+  public static Dictionary<string, DependsOnNode> MakeDependsOnReport(ProjectDependencyGraph pdg)
   {
-    var report = new Dictionary<Guid, DependsOnNode>();
+    var report = new Dictionary<string, DependsOnNode>(StringComparer.OrdinalIgnoreCase);
     foreach(var pn in pdg.Nodes)
     {
       GetDependsOnNode(report, pn, 32);
@@ -31,9 +31,9 @@ public static class DependencyReport
   /// <summary>
   /// Create reverse dependency trees for all projects in the graph
   /// </summary>
-  public static Dictionary<Guid, DependentOfNode> MakeDependentOfReport(ProjectDependencyGraph pdg)
+  public static Dictionary<string, DependentOfNode> MakeDependentOfReport(ProjectDependencyGraph pdg)
   {
-    var report = new Dictionary<Guid, DependentOfNode>();
+    var report = new Dictionary<string, DependentOfNode>(StringComparer.OrdinalIgnoreCase);
     foreach(var pn in pdg.Nodes)
     {
       GetDependentOfNode(report, pn, 32);
@@ -42,9 +42,9 @@ public static class DependencyReport
   }
 
   private static DependsOnNode GetDependsOnNode(
-    Dictionary<Guid, DependsOnNode> cache, ProjectNode source, int maxRecurse)
+    Dictionary<string, DependsOnNode> cache, ProjectNode source, int maxRecurse)
   {
-    if(cache.TryGetValue(source.Id, out var dn))
+    if(cache.TryGetValue(source.Label, out var dn))
     {
       return dn;
     }
@@ -58,14 +58,14 @@ public static class DependencyReport
       list.Add(GetDependsOnNode(cache, child, maxRecurse - 1));
     }
     dn = new DependsOnNode(source.Project.Label, list);
-    cache[source.Id] = dn;
+    cache[source.Label] = dn;
     return dn;
   }
 
   private static DependentOfNode GetDependentOfNode(
-    Dictionary<Guid, DependentOfNode> cache, ProjectNode source, int maxRecurse)
+    Dictionary<string, DependentOfNode> cache, ProjectNode source, int maxRecurse)
   {
-    if(cache.TryGetValue(source.Id, out var dn))
+    if(cache.TryGetValue(source.Label, out var dn))
     {
       return dn;
     }
@@ -79,7 +79,7 @@ public static class DependencyReport
       list.Add(GetDependentOfNode(cache, child, maxRecurse - 1));
     }
     dn = new DependentOfNode(source.Project.Label, list);
-    cache[source.Id] = dn;
+    cache[source.Label] = dn;
     return dn;
   }
 }

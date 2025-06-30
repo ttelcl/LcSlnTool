@@ -103,6 +103,17 @@ public class SolutionProjectInfo
   public SolutionProjectInfo? SolutionFolderProject { get; set; }
 
   /// <summary>
+  /// The 'path' in the solution tree of this project node
+  /// </summary>
+  public string SolutionTreePath()
+  {
+    return
+      SolutionFolderProject == null
+      ? "/" + Label
+      : SolutionFolderProject.SolutionTreePath() + "/" + Label;
+  }
+
+  /// <summary>
   /// If this is a Solution Folder project, this list contains the projects
   /// in that solution folder
   /// </summary>

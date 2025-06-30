@@ -15,10 +15,10 @@ namespace Lcl.VsUtilities.Solutions;
 /// </summary>
 public class ProjectDependencyGraph
 {
-  private Dictionary<Guid, ProjectNode> _nodes;
+  private Dictionary<string, ProjectNode> _nodes;
   private List<ProjectReference> _missingTargets;
-  private Dictionary<Guid, HashSet<Guid>>? _deepDependsOnCache = null;
-  private Dictionary<Guid, HashSet<Guid>>? _deepDependentOfCache = null;
+  private Dictionary<string, HashSet<string>>? _deepDependsOnCache = null;
+  private Dictionary<string, HashSet<string>>? _deepDependentOfCache = null;
 
   /// <summary>
   /// Create a new ProjectDependencyGraph
@@ -27,7 +27,7 @@ public class ProjectDependencyGraph
   {
     Solution = sln;
     _missingTargets = new List<ProjectReference>();
-    _nodes = new Dictionary<Guid, ProjectNode>();
+    _nodes = new Dictionary<string, ProjectNode>(StringComparer.OrdinalIgnoreCase);
     _deepDependsOnCache = null;
     _deepDependentOfCache = null;
 
@@ -35,7 +35,7 @@ public class ProjectDependencyGraph
     foreach(var prj in Solution.Projects)
     {
       var node = new ProjectNode(this, prj);
-      _nodes[node.Id] = node;
+      _nodes[node.Label] = node;
     }
 
     // initialize dependencies
@@ -43,7 +43,7 @@ public class ProjectDependencyGraph
     {
       foreach(var reference in depender.Project.ProjectReferences)
       {
-        if(_nodes.TryGetValue(reference.ProjectId, out var node))
+        if(_nodes.TryGetValue(reference.Name, out var node))
         {
           RegisterDependence(depender, node);
         }
@@ -82,7 +82,7 @@ public class ProjectDependencyGraph
     }
     foreach(var node in list)
     {
-      _nodes.Remove(node.Id);
+      _nodes.Remove(node.Label);
     }
     _deepDependentOfCache = null;
     _deepDependsOnCache = null;
@@ -90,20 +90,20 @@ public class ProjectDependencyGraph
   }
 
   /// <summary>
-  /// Find a project node by Id, returning null if not found
+  /// Find a project node by Name, returning null if not found
   /// </summary>
-  public ProjectNode? FindNodeById(Guid id)
+  public ProjectNode? FindNodeById(string name)
   {
-    return _nodes.TryGetValue(id, out var node) ? node : null;
+    return _nodes.TryGetValue(name, out var node) ? node : null;
   }
 
   /// <summary>
   /// Calculate the leaf levels for all nodes, returning them as a dictionary
   /// mapping Project GUIDs to the leaf level
   /// </summary>
-  public Dictionary<Guid, int> GetLeafLevels()
+  public Dictionary<string, int> GetLeafLevels()
   {
-    var map = new Dictionary<Guid, int>();
+    var map = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
     foreach(var p in Nodes)
     {
       var unused = GetNodeLevelFor(map, p, n => n.DependsOn, 32);
@@ -115,9 +115,9 @@ public class ProjectDependencyGraph
   /// Calculate the root levels for all nodes, returning them as a dictionary
   /// mapping Project GUIDs to the leaf level
   /// </summary>
-  public Dictionary<Guid, int> GetRootLevels()
+  public Dictionary<string, int> GetRootLevels()
   {
-    var map = new Dictionary<Guid, int>();
+    var map = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
     foreach(var p in Nodes)
     {
       var unused = GetNodeLevelFor(map, p, n => n.DependentOf, 32);
@@ -126,21 +126,22 @@ public class ProjectDependencyGraph
   }
 
   /// <summary>
-  /// Find the ids of projects a project depends on that none of its
+  /// Find the ids of projects a project depends on, that none of its
   /// recursive dependencies themselves depend on
   /// </summary>
-  public HashSet<Guid> FindPureDependencies(ProjectNode node)
+  public HashSet<string> FindPureDependencies(ProjectNode node)
   {
     if(_deepDependsOnCache == null)
     {
-      _deepDependsOnCache = new Dictionary<Guid, HashSet<Guid>>();
+      _deepDependsOnCache = new Dictionary<string, HashSet<string>>(
+        StringComparer.OrdinalIgnoreCase);
     }
     // initialize _deepDependsOnCache for all relevant nodes
     var deepDepIds = _GetDeepChildIds(_deepDependsOnCache, node, n => n.DependsOn, 32);
-    var result = new HashSet<Guid>(deepDepIds);
+    var result = new HashSet<string>(deepDepIds, StringComparer.OrdinalIgnoreCase);
     foreach(var child in node.DependsOn)
     {
-      var deepChildIds = _deepDependsOnCache[child.Id];
+      var deepChildIds = _deepDependsOnCache[child.Label];
       result.ExceptWith(deepChildIds);
     }
     return result;
@@ -154,7 +155,8 @@ public class ProjectDependencyGraph
   {
     if(_deepDependsOnCache == null)
     {
-      _deepDependsOnCache = new Dictionary<Guid, HashSet<Guid>>();
+      _deepDependsOnCache = new Dictionary<string, HashSet<string>>(
+        StringComparer.OrdinalIgnoreCase);
     }
     var idSet = _GetDeepChildIds(_deepDependsOnCache, node, n => n.DependsOn, 32);
     var list = new List<ProjectNode>(
@@ -173,7 +175,8 @@ public class ProjectDependencyGraph
   {
     if(_deepDependentOfCache == null)
     {
-      _deepDependentOfCache = new Dictionary<Guid, HashSet<Guid>>();
+      _deepDependentOfCache = new Dictionary<string, HashSet<string>>(
+        StringComparer.OrdinalIgnoreCase);
     }
     var idSet = _GetDeepChildIds(_deepDependentOfCache, node, n => n.DependentOf, 32);
     var list = new List<ProjectNode>(
@@ -184,13 +187,13 @@ public class ProjectDependencyGraph
     return list.AsReadOnly();
   }
 
-  private HashSet<Guid> _GetDeepChildIds(
-    Dictionary<Guid, HashSet<Guid>> cache,
+  private HashSet<string> _GetDeepChildIds(
+    Dictionary<string, HashSet<string>> cache,
     ProjectNode node,
     Func<ProjectNode, IEnumerable<ProjectNode>> getChildren,
     int recursionGuard)
   {
-    if(cache.TryGetValue(node.Id, out var result))
+    if(cache.TryGetValue(node.Label, out var result))
     {
       return result;
     }
@@ -198,29 +201,29 @@ public class ProjectDependencyGraph
     {
       throw new InvalidOperationException("Recursion limit exceeded");
     }
-    result = new HashSet<Guid>();
+    result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     var children = getChildren(node);
     foreach(var child in children)
     {
-      if(!result.Contains(child.Id))
+      if(!result.Contains(child.Label))
       {
-        result.Add(child.Id);
+        result.Add(child.Label);
         var grandchildIds = _GetDeepChildIds(cache, child, getChildren, recursionGuard - 1);
         result.UnionWith(grandchildIds);
       }
     }
-    cache[node.Id] = result;
+    cache[node.Label] = result;
     return result;
   }
 
   private int GetNodeLevelFor(
-    Dictionary<Guid, int> cache,
+    Dictionary<string, int> cache,
     ProjectNode node,
     Func<ProjectNode, IEnumerable<ProjectNode>> getChildren,
     int recursionGuard)
   {
     int level;
-    if(cache.TryGetValue(node.Id, out level))
+    if(cache.TryGetValue(node.Label, out level))
     {
       return level;
     }
@@ -238,7 +241,7 @@ public class ProjectDependencyGraph
         level = clvl;
       }
     }
-    cache[node.Id] = level;
+    cache[node.Label] = level;
     return level;
   }
 
@@ -297,20 +300,20 @@ public class ProjectNode
   /// </summary>
   public bool IsRoot { get { return DependentOf.Count == 0; } }
 
-  /// <summary>
-  /// The id of this node's project
-  /// </summary>
-  public Guid Id { get { return Project.Id; } }
+  ///// <summary>
+  ///// The id of this node's project
+  ///// </summary>
+  //public Guid Id { get { return Project.Id; } }
 
   /// <summary>
   /// Get the project label
   /// </summary>
   public string Label { get { return Project.Label; } }
 
-  /// <summary>
-  /// Return the project ID in a forma that is safe to use as identifier
-  /// </summary>
-  public string IdString { get { return "X" + Project.Id.ToString("N"); } }
+  ///// <summary>
+  ///// Return the project ID in a form that is safe to use as identifier
+  ///// </summary>
+  //public string IdString { get { return "X" + Project.Id.ToString("N"); } }
 
   /// <summary>
   /// True if this is a node of a stub project (such as a solution folder)
@@ -322,18 +325,18 @@ public class ProjectNode
   /// Look up the value for this node in the specified map, returning the
   /// specified default value if not found
   /// </summary>
-  public T Lookup<T>(Dictionary<Guid, T> map, T defaultValue)
+  public T Lookup<T>(Dictionary<string, T> map, T defaultValue)
   {
-    return map.TryGetValue(Id, out var t) ? t : defaultValue;
+    return map.TryGetValue(Label, out var t) ? t : defaultValue;
   }
 
   /// <summary>
   /// Look up the value for this node in the specified map, throwing 
   /// an exception if not found
   /// </summary>
-  public T Lookup<T>(Dictionary<Guid, T> map)
+  public T Lookup<T>(Dictionary<string, T> map)
   {
-    return map[Id];
+    return map[Label];
   }
 
   internal void RegisterDependenceOn(ProjectNode target)

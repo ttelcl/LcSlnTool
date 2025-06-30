@@ -218,5 +218,19 @@ public class SolutionInfo
     return new ProjectDetails(spi, prjf);
   }
 
+  /// <summary>
+  /// Build a JSON serializable model of the solution tree (a forest really,
+  /// the root node is not included)
+  /// </summary>
+  /// <returns></returns>
+  public IReadOnlyList<SolutionTreeNode> BuildSolutionTree()
+  {
+    var nodes =
+      from project in Projects
+      where project.SolutionFolderProject == null
+      orderby project.Label
+      select SolutionTreeNode.FromSolutionProjectInfo(project);
+    return nodes.ToList().AsReadOnly();
+  }
 }
 
