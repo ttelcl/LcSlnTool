@@ -17,6 +17,7 @@ namespace Lcl.VsUtilities.Solutions;
 public class SolutionInfo
 {
   private List<SolutionProjectInfo> _projects;
+  private Dictionary<string, SolutionProjectInfo> _projectByFileMap;
 
   /// <summary>
   /// Create a new SolutionInfo
@@ -26,12 +27,25 @@ public class SolutionInfo
     IEnumerable<SolutionProjectInfo> projects,
     string? vsVersion)
   {
+
     SolutionFile = Path.GetFullPath(path);
     SolutionFolder = Path.GetDirectoryName(SolutionFile)!;
     Name = Path.GetFileNameWithoutExtension(SolutionFile);
     _projects = [.. projects];
+    _projectByFileMap = new Dictionary<string, SolutionProjectInfo>(
+      StringComparer.OrdinalIgnoreCase);
     Projects = _projects.AsReadOnly();
     VisualStudioVersion = vsVersion ?? "0.0.0.0";
+    foreach(var project in projects)
+    {
+      var projectFile = TryProjectFile(project);
+      if(projectFile != null) 
+      {
+        // Only map true projects, not solution folders
+        // This should remove the most common cause for name conflicts
+        _projectByFileMap.Add(project.Key, project);
+      }
+    }
   }
 
   /// <summary>
@@ -191,7 +205,7 @@ public class SolutionInfo
     {
       return fnm;
     }
-    else
+    else // includes the case where spi.Path is a directory or solution folder
     {
       return null;
     }
@@ -214,8 +228,19 @@ public class SolutionInfo
     {
       return createStubs ? new ProjectDetails(spi, null) : null;
     }
-    var prjf = ProjectFile.ParseFile(name);
+    var prjf = ProjectFile.ParseFile(name, this);
     return new ProjectDetails(spi, prjf);
+  }
+
+  /// <summary>
+  /// Given a full or short project file name, find the matching
+  /// <see cref="SolutionProjectInfo"/> (returning null if missing)
+  /// </summary>
+  public SolutionProjectInfo? FindProjectInfoForProjectFile(string projectFile)
+  {
+    var shortName = Path.GetFileName(projectFile);
+    return
+      _projectByFileMap.TryGetValue(shortName, out var spi) ? spi : null;
   }
 
   /// <summary>

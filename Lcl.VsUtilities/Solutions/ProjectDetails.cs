@@ -63,7 +63,14 @@ public class ProjectDetails
   /// <summary>
   /// The project references (forwarded from Content)
   /// </summary>
-  public IReadOnlyList<ProjectReference> ProjectReferences { get { return Content.ProjectReferences; } }
+  public IReadOnlyList<ProjectReference> ProjectReferences {
+    get { return Content.ProjectReferences; }
+  }
+
+  /// <summary>
+  /// The unique project ID
+  /// </summary>
+  public Guid ProjectId => Meta.Id;
 
 }
 

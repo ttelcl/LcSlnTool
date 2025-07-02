@@ -18,10 +18,10 @@ public class ProjectReference
   /// <summary>
   /// Create a new ProjectReference
   /// </summary>
-  public ProjectReference(string name, /*Guid projectId,*/ string include)
+  public ProjectReference(string name, Guid projectId, string include)
   {
     Name = name;
-    // ProjectId = projectId;
+    ProjectId = projectId;
     Include = include ?? String.Empty;
   }
 
@@ -30,10 +30,10 @@ public class ProjectReference
   /// </summary>
   public string Name { get; }
 
-  ///// <summary>
-  ///// Id of the referenced project
-  ///// </summary>
-  //public Guid ProjectId { get; }
+  /// <summary>
+  /// Id of the referenced project
+  /// </summary>
+  public Guid ProjectId { get; }
 
   /// <summary>
   /// The "Include" attribute, or an empty string if not available

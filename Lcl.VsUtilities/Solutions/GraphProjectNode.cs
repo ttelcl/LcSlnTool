@@ -72,6 +72,11 @@ public class GraphProjectNode
   public string Key { get => Project.Meta.Key; }
 
   /// <summary>
+  /// Get the unique ID for this project
+  /// </summary>
+  public Guid ProjectId => Project.ProjectId;
+
+  /// <summary>
   /// True if this is a node of a stub project (such as a solution folder)
   /// that is not likely to be truly part of the dependency graph
   /// </summary>
