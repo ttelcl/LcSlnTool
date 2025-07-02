@@ -250,6 +250,10 @@ public class ProjectDependencyGraph
       throw new InvalidOperationException(
         $"Dependency graph is not acyclic. {_nodes.Count - result.Count} nodes unaccounted for");
     }
+    for(var i = 0; i < result.Count; i++)
+    {
+      result[i].TopoSortOrder = i;
+    }
     return result.AsReadOnly();
   }
 

@@ -70,6 +70,12 @@ public class GraphProjectNode
   public bool IsStub { get { return Project.IsStub; } }
 
   /// <summary>
+  /// The sort order in the topological sort. Set by 
+  /// <see cref="ProjectDependencyGraph.TopologicallySort()"/>
+  /// </summary>
+  public int TopoSortOrder { get; internal set; } = -1;
+
+  /// <summary>
   /// Look up the value for this node in the specified map, returning the
   /// specified default value if not found
   /// </summary>

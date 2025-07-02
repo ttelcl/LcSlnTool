@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
@@ -29,7 +30,8 @@ public class ProjectSummary
     string? sdk,
     IEnumerable<string> frameworks,
     IEnumerable<string> directrefs,
-    IEnumerable<string> allrefs)
+    IEnumerable<string> allrefs,
+    int sortindex = -1)
   {
     Name = name;
     TreePath = treePath;
@@ -39,6 +41,7 @@ public class ProjectSummary
     Frameworks = frameworks.ToList().AsReadOnly();
     DirectRefs = directrefs.ToList();
     AllRefs = allrefs.ToList();
+    SortIndex = sortindex;
   }
 
   /// <summary>
@@ -89,7 +92,8 @@ public class ProjectSummary
       prf.Sdk,
       prf.Frameworks,
       directDependencies,
-      deepDependencies);
+      deepDependencies,
+      pNode.TopoSortOrder);
   }
 
   /// <summary>
@@ -97,6 +101,23 @@ public class ProjectSummary
   /// </summary>
   [JsonProperty("name")]
   public string Name { get; }
+
+  /// <summary>
+  /// The sort order in a topological sort. All nodes this node
+  /// depends on will have a lower value.
+  /// Set to -1 if not calculated.
+  /// </summary>
+  [JsonProperty("sortindex")]
+  [DefaultValue(-1)]
+  public int SortIndex { get; } = -1;
+
+  /// <summary>
+  /// Whether or not to serialize the <see cref="SortIndex"/> field
+  /// </summary>
+  public bool ShouldSerializeSortIndex()
+  {
+    return SortIndex != -1;
+  }
 
   /// <summary>
   /// The path of this project in the solution tree
@@ -132,7 +153,7 @@ public class ProjectSummary
   /// The SDK used by this project, if known
   /// </summary>
   [JsonProperty("sdk")]
-  public string? Sdk {  get; }
+  public string? Sdk { get; }
 
   /// <summary>
   /// The target frameworks, if known

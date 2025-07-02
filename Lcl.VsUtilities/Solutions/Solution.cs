@@ -69,6 +69,7 @@ public class Solution
     ProjectDependencyGraph graph)
   {
     var map = new Dictionary<string, ProjectSummary>(StringComparer.OrdinalIgnoreCase);
+    var sortguide = graph.TopologicallySorted;
     foreach(var project in Projects)
     {
       var summary = ProjectSummary.FromProject(project, graph);
@@ -77,7 +78,6 @@ public class Solution
         map[summary.Name] = summary;
       }
     }
-    var sortguide = graph.TopologicallySorted;
     var result =
       sortguide
       .Where(n => map.ContainsKey(n.Label))
