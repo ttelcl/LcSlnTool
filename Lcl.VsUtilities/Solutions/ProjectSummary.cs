@@ -24,6 +24,7 @@ public class ProjectSummary
   /// </summary>
   public ProjectSummary(
     string name,
+    string key,
     string treePath,
     string projectPath,
     Guid id,
@@ -34,6 +35,7 @@ public class ProjectSummary
     int sortindex = -1)
   {
     Name = name;
+    Key = key;
     TreePath = treePath;
     ProjectPath = projectPath;
     Id = id;
@@ -57,6 +59,7 @@ public class ProjectSummary
     }
     var prf = project.Content!;
     var name = project.Label;
+    var key = project.Key;
     var treePath = project.Meta.SolutionTreePath();
     var id = project.Meta.Id;
     var directDependencies =
@@ -64,16 +67,16 @@ public class ProjectSummary
       .ProjectReferences
       .Select(r => r.Name)
       .ToHashSet(StringComparer.OrdinalIgnoreCase);
-    var pNode = graph.FindNodeById(name);
+    var pNode = graph.FindNodeById(key);
     if(pNode == null)
     {
       throw new InvalidOperationException(
-        "Internal error: project not found in dependency graph");
+        $"Internal error: project '{key}' not found in dependency graph");
     }
     var deepDependencies =
       graph
       .GetDeepDependsOn(pNode)
-      .Select(n => n.Label)
+      .Select(n => n.Key)
       .ToHashSet(StringComparer.OrdinalIgnoreCase);
     var references = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
     foreach(var deepDep in deepDependencies)
@@ -86,6 +89,7 @@ public class ProjectSummary
     }
     return new ProjectSummary(
       name,
+      key,
       treePath,
       project.Meta.Path,
       id,
@@ -101,6 +105,12 @@ public class ProjectSummary
   /// </summary>
   [JsonProperty("name")]
   public string Name { get; }
+
+  /// <summary>
+  /// The key of the project
+  /// </summary>
+  [JsonProperty("key")]
+  public string Key { get; }
 
   /// <summary>
   /// The sort order in a topological sort. All nodes this node

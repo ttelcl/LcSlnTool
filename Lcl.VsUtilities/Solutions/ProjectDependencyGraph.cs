@@ -37,7 +37,12 @@ public class ProjectDependencyGraph
     foreach(var prj in Solution.Projects)
     {
       var node = new GraphProjectNode(this, prj);
-      _nodes[node.Label] = node;
+      if(_nodes.TryGetValue(node.Key, out var existing))
+      {
+        throw new InvalidOperationException(
+          $"Project name conflict: {node.Project.Meta.Path} vs {existing.Project.Meta.Path}");
+      }
+      _nodes[node.Key] = node;
     }
 
     // initialize dependencies
@@ -84,7 +89,7 @@ public class ProjectDependencyGraph
     }
     foreach(var node in list)
     {
-      _nodes.Remove(node.Label);
+      _nodes.Remove(node.Key);
     }
     _deepDependentOfCache = null;
     _deepDependsOnCache = null;
@@ -144,7 +149,7 @@ public class ProjectDependencyGraph
     var result = new HashSet<string>(deepDepIds, StringComparer.OrdinalIgnoreCase);
     foreach(var child in node.DependsOn)
     {
-      var deepChildIds = _deepDependsOnCache[child.Label];
+      var deepChildIds = _deepDependsOnCache[child.Key];
       result.ExceptWith(deepChildIds);
     }
     return result;
@@ -263,7 +268,7 @@ public class ProjectDependencyGraph
     Func<GraphProjectNode, IEnumerable<GraphProjectNode>> getChildren,
     int recursionGuard)
   {
-    if(cache.TryGetValue(node.Label, out var result))
+    if(cache.TryGetValue(node.Key, out var result))
     {
       return result;
     }
@@ -275,14 +280,14 @@ public class ProjectDependencyGraph
     var children = getChildren(node);
     foreach(var child in children)
     {
-      if(!result.Contains(child.Label))
+      if(!result.Contains(child.Key))
       {
-        result.Add(child.Label);
+        result.Add(child.Key);
         var grandchildIds = _GetDeepChildIds(cache, child, getChildren, recursionGuard - 1);
         result.UnionWith(grandchildIds);
       }
     }
-    cache[node.Label] = result;
+    cache[node.Key] = result;
     return result;
   }
 
@@ -293,7 +298,7 @@ public class ProjectDependencyGraph
     int recursionGuard)
   {
     int level;
-    if(cache.TryGetValue(node.Label, out level))
+    if(cache.TryGetValue(node.Key, out level))
     {
       return level;
     }
@@ -311,7 +316,7 @@ public class ProjectDependencyGraph
         level = clvl;
       }
     }
-    cache[node.Label] = level;
+    cache[node.Key] = level;
     return level;
   }
 

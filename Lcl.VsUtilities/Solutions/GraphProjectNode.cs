@@ -59,9 +59,17 @@ public class GraphProjectNode
   public bool IsRoot { get { return DependentOf.Count == 0; } }
 
   /// <summary>
-  /// Get the project label
+  /// Get the project short label. Not guaranteed to be unique!
+  /// For example: a duplicate exists if a solution folder has the same
+  /// name as a project.
   /// </summary>
   public string Label { get { return Project.Label; } }
+
+  /// <summary>
+  /// Get the project long label. This should be unique as long as
+  /// all projects have different names.
+  /// </summary>
+  public string Key { get => Project.Meta.Key; }
 
   /// <summary>
   /// True if this is a node of a stub project (such as a solution folder)
@@ -77,11 +85,12 @@ public class GraphProjectNode
 
   /// <summary>
   /// Look up the value for this node in the specified map, returning the
-  /// specified default value if not found
+  /// specified default value if not found. The map must use the project
+  /// Key as index.
   /// </summary>
   public T Lookup<T>(Dictionary<string, T> map, T defaultValue)
   {
-    return map.TryGetValue(Label, out var t) ? t : defaultValue;
+    return map.TryGetValue(Key, out var t) ? t : defaultValue;
   }
 
   /// <summary>
@@ -90,7 +99,7 @@ public class GraphProjectNode
   /// </summary>
   public T Lookup<T>(Dictionary<string, T> map)
   {
-    return map[Label];
+    return map[Key];
   }
 
   /// <summary>
@@ -98,7 +107,7 @@ public class GraphProjectNode
   /// </summary>
   public void Set<T>(Dictionary<string, T> map, T value)
   {
-    map[Label] = value;
+    map[Key] = value;
   }
 
   internal void RegisterDependenceOn(GraphProjectNode target)

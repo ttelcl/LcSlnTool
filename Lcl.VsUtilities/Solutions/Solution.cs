@@ -75,14 +75,14 @@ public class Solution
       var summary = ProjectSummary.FromProject(project, graph);
       if(summary != null)
       {
-        map[summary.Name] = summary;
+        map[summary.Key] = summary;
       }
     }
     var result =
       sortguide
-      .Where(n => map.ContainsKey(n.Label))
-      .Select(n => map[n.Label])
-      .ToDictionary(s => s.Name, s => s, StringComparer.OrdinalIgnoreCase);
+      .Where(n => map.ContainsKey(n.Key))
+      .Select(n => map[n.Key])
+      .ToDictionary(s => s.Key, s => s, StringComparer.OrdinalIgnoreCase);
     return result;
   }
 
