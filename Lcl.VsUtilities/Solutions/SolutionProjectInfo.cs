@@ -33,6 +33,7 @@ public class SolutionProjectInfo
     Label = label;
     Path = path;
     Id = projectId;
+    Key = System.IO.Path.GetFileName(path);
   }
 
   /// <summary>
@@ -75,7 +76,8 @@ public class SolutionProjectInfo
   public Guid ProjectTypeId { get; }
 
   /// <summary>
-  /// Identifies the project
+  /// Identifies the project. Do not use - it is no longer available from
+  /// within project files!
   /// </summary>
   public Guid Id { get; }
 
@@ -83,6 +85,12 @@ public class SolutionProjectInfo
   /// Name for the project
   /// </summary>
   public string Label { get; }
+
+  /// <summary>
+  /// A string that uniquely defines this project.
+  /// Currently implemented as the 'filename' part of <see cref="Path"/>
+  /// </summary>
+  public string Key { get; }
 
   /// <summary>
   /// For most project types this is the relative path to the project file.

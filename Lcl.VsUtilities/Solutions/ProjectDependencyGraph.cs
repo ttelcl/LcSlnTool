@@ -15,10 +15,10 @@ namespace Lcl.VsUtilities.Solutions;
 /// </summary>
 public class ProjectDependencyGraph
 {
-  private Dictionary<string, GraphProjectNode> _nodes;
+  private Dictionary<Guid, GraphProjectNode> _nodes;
   private List<ProjectReference> _missingTargets;
-  private Dictionary<string, HashSet<string>>? _deepDependsOnCache = null;
-  private Dictionary<string, HashSet<string>>? _deepDependentOfCache = null;
+  private Dictionary<Guid, HashSet<Guid>>? _deepDependsOnCache = null;
+  private Dictionary<Guid, HashSet<Guid>>? _deepDependentOfCache = null;
   private IReadOnlyList<GraphProjectNode>? _topoSortList = null;
 
   /// <summary>
@@ -28,7 +28,7 @@ public class ProjectDependencyGraph
   {
     Solution = sln;
     _missingTargets = new List<ProjectReference>();
-    _nodes = new Dictionary<string, GraphProjectNode>(StringComparer.OrdinalIgnoreCase);
+    _nodes = new Dictionary<Guid, GraphProjectNode>();
     _deepDependsOnCache = null;
     _deepDependentOfCache = null;
     _topoSortList = null;
@@ -37,7 +37,12 @@ public class ProjectDependencyGraph
     foreach(var prj in Solution.Projects)
     {
       var node = new GraphProjectNode(this, prj);
-      _nodes[node.Label] = node;
+      if(_nodes.TryGetValue(node.ProjectId, out var existing))
+      {
+        throw new InvalidOperationException(
+          $"Project name conflict: {node.Project.Meta.Path} vs {existing.Project.Meta.Path}");
+      }
+      _nodes[node.ProjectId] = node;
     }
 
     // initialize dependencies
@@ -45,7 +50,7 @@ public class ProjectDependencyGraph
     {
       foreach(var reference in depender.Project.ProjectReferences)
       {
-        if(_nodes.TryGetValue(reference.Name, out var node))
+        if(_nodes.TryGetValue(reference.ProjectId, out var node))
         {
           RegisterDependence(depender, node);
         }
@@ -84,7 +89,7 @@ public class ProjectDependencyGraph
     }
     foreach(var node in list)
     {
-      _nodes.Remove(node.Label);
+      _nodes.Remove(node.ProjectId);
     }
     _deepDependentOfCache = null;
     _deepDependsOnCache = null;
@@ -95,18 +100,18 @@ public class ProjectDependencyGraph
   /// <summary>
   /// Find a project node by Name, returning null if not found
   /// </summary>
-  public GraphProjectNode? FindNodeById(string name)
+  public GraphProjectNode? FindNodeById(Guid projectId)
   {
-    return _nodes.TryGetValue(name, out var node) ? node : null;
+    return _nodes.TryGetValue(projectId, out var node) ? node : null;
   }
 
   /// <summary>
   /// Calculate the leaf levels for all nodes, returning them as a dictionary
   /// mapping Project GUIDs to the leaf level
   /// </summary>
-  public Dictionary<string, int> GetLeafLevels()
+  public Dictionary<Guid, int> GetLeafLevels()
   {
-    var map = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+    var map = new Dictionary<Guid, int>();
     foreach(var p in Nodes)
     {
       var unused = GetNodeLevelFor(map, p, n => n.DependsOn, 32);
@@ -118,9 +123,9 @@ public class ProjectDependencyGraph
   /// Calculate the root levels for all nodes, returning them as a dictionary
   /// mapping Project GUIDs to the leaf level
   /// </summary>
-  public Dictionary<string, int> GetRootLevels()
+  public Dictionary<Guid, int> GetRootLevels()
   {
-    var map = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+    var map = new Dictionary<Guid, int>();
     foreach(var p in Nodes)
     {
       var unused = GetNodeLevelFor(map, p, n => n.DependentOf, 32);
@@ -132,19 +137,18 @@ public class ProjectDependencyGraph
   /// Find the ids of projects a project depends on, that none of its
   /// recursive dependencies themselves depend on
   /// </summary>
-  public HashSet<string> FindPureDependencies(GraphProjectNode node)
+  public HashSet<Guid> FindPureDependencies(GraphProjectNode node)
   {
     if(_deepDependsOnCache == null)
     {
-      _deepDependsOnCache = new Dictionary<string, HashSet<string>>(
-        StringComparer.OrdinalIgnoreCase);
+      _deepDependsOnCache = new Dictionary<Guid, HashSet<Guid>>();
     }
     // initialize _deepDependsOnCache for all relevant nodes
     var deepDepIds = _GetDeepChildIds(_deepDependsOnCache, node, n => n.DependsOn, 32);
-    var result = new HashSet<string>(deepDepIds, StringComparer.OrdinalIgnoreCase);
+    var result = new HashSet<Guid>(deepDepIds);
     foreach(var child in node.DependsOn)
     {
-      var deepChildIds = _deepDependsOnCache[child.Label];
+      var deepChildIds = _deepDependsOnCache[child.ProjectId];
       result.ExceptWith(deepChildIds);
     }
     return result;
@@ -158,8 +162,7 @@ public class ProjectDependencyGraph
   {
     if(_deepDependsOnCache == null)
     {
-      _deepDependsOnCache = new Dictionary<string, HashSet<string>>(
-        StringComparer.OrdinalIgnoreCase);
+      _deepDependsOnCache = new Dictionary<Guid, HashSet<Guid>>();
     }
     var idSet = _GetDeepChildIds(_deepDependsOnCache, node, n => n.DependsOn, 32);
     var list = new List<GraphProjectNode>(
@@ -178,8 +181,7 @@ public class ProjectDependencyGraph
   {
     if(_deepDependentOfCache == null)
     {
-      _deepDependentOfCache = new Dictionary<string, HashSet<string>>(
-        StringComparer.OrdinalIgnoreCase);
+      _deepDependentOfCache = new Dictionary<Guid, HashSet<Guid>>();
     }
     var idSet = _GetDeepChildIds(_deepDependentOfCache, node, n => n.DependentOf, 32);
     var list = new List<GraphProjectNode>(
@@ -257,13 +259,13 @@ public class ProjectDependencyGraph
     return result.AsReadOnly();
   }
 
-  private HashSet<string> _GetDeepChildIds(
-    Dictionary<string, HashSet<string>> cache,
+  private HashSet<Guid> _GetDeepChildIds(
+    Dictionary<Guid, HashSet<Guid>> cache,
     GraphProjectNode node,
     Func<GraphProjectNode, IEnumerable<GraphProjectNode>> getChildren,
     int recursionGuard)
   {
-    if(cache.TryGetValue(node.Label, out var result))
+    if(cache.TryGetValue(node.ProjectId, out var result))
     {
       return result;
     }
@@ -271,29 +273,29 @@ public class ProjectDependencyGraph
     {
       throw new InvalidOperationException("Recursion limit exceeded");
     }
-    result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    result = new HashSet<Guid>();
     var children = getChildren(node);
     foreach(var child in children)
     {
-      if(!result.Contains(child.Label))
+      if(!result.Contains(child.ProjectId))
       {
-        result.Add(child.Label);
+        result.Add(child.ProjectId);
         var grandchildIds = _GetDeepChildIds(cache, child, getChildren, recursionGuard - 1);
         result.UnionWith(grandchildIds);
       }
     }
-    cache[node.Label] = result;
+    cache[node.ProjectId] = result;
     return result;
   }
 
   private int GetNodeLevelFor(
-    Dictionary<string, int> cache,
+    Dictionary<Guid, int> cache,
     GraphProjectNode node,
     Func<GraphProjectNode, IEnumerable<GraphProjectNode>> getChildren,
     int recursionGuard)
   {
     int level;
-    if(cache.TryGetValue(node.Label, out level))
+    if(cache.TryGetValue(node.ProjectId, out level))
     {
       return level;
     }
@@ -311,7 +313,7 @@ public class ProjectDependencyGraph
         level = clvl;
       }
     }
-    cache[node.Label] = level;
+    cache[node.ProjectId] = level;
     return level;
   }
 

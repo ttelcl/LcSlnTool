@@ -44,7 +44,7 @@ public static class DependencyReport
   private static DependsOnNode GetDependsOnNode(
     Dictionary<string, DependsOnNode> cache, GraphProjectNode source, int maxRecurse)
   {
-    if(cache.TryGetValue(source.Label, out var dn))
+    if(cache.TryGetValue(source.Key, out var dn))
     {
       return dn;
     }
@@ -57,15 +57,15 @@ public static class DependencyReport
     {
       list.Add(GetDependsOnNode(cache, child, maxRecurse - 1));
     }
-    dn = new DependsOnNode(source.Project.Label, list);
-    cache[source.Label] = dn;
+    dn = new DependsOnNode(source.Project.Key, list);
+    cache[source.Key] = dn;
     return dn;
   }
 
   private static DependentOfNode GetDependentOfNode(
     Dictionary<string, DependentOfNode> cache, GraphProjectNode source, int maxRecurse)
   {
-    if(cache.TryGetValue(source.Label, out var dn))
+    if(cache.TryGetValue(source.Key, out var dn))
     {
       return dn;
     }
@@ -78,8 +78,8 @@ public static class DependencyReport
     {
       list.Add(GetDependentOfNode(cache, child, maxRecurse - 1));
     }
-    dn = new DependentOfNode(source.Project.Label, list);
-    cache[source.Label] = dn;
+    dn = new DependentOfNode(source.Project.Key, list);
+    cache[source.Key] = dn;
     return dn;
   }
 }

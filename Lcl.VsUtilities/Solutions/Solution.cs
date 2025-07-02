@@ -68,20 +68,20 @@ public class Solution
   public IReadOnlyDictionary<string, ProjectSummary> BuildProjectSummaries(
     ProjectDependencyGraph graph)
   {
-    var map = new Dictionary<string, ProjectSummary>(StringComparer.OrdinalIgnoreCase);
+    var map = new Dictionary<Guid, ProjectSummary>();
     var sortguide = graph.TopologicallySorted;
     foreach(var project in Projects)
     {
       var summary = ProjectSummary.FromProject(project, graph);
       if(summary != null)
       {
-        map[summary.Name] = summary;
+        map.Add(summary.Id,  summary);
       }
     }
     var result =
       sortguide
-      .Where(n => map.ContainsKey(n.Label))
-      .Select(n => map[n.Label])
+      .Where(n => map.ContainsKey(n.ProjectId))
+      .Select(n => map[n.ProjectId])
       .ToDictionary(s => s.Name, s => s, StringComparer.OrdinalIgnoreCase);
     return result;
   }

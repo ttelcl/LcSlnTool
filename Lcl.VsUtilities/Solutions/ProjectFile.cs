@@ -50,11 +50,11 @@ public class ProjectFile
   const string MsbuildNamespace = "http://schemas.microsoft.com/developer/msbuild/2003";
 
   /// <summary>
-  /// Load a project file
+  /// Load a project file, if it exists as a file
   /// </summary>
-  public static ProjectFile ParseFile(string filename)
+  public static ProjectFile ParseFile(string filename, SolutionInfo si)
   {
-    if (String.IsNullOrEmpty(filename))
+    if(String.IsNullOrEmpty(filename))
     {
       throw new ArgumentException("Expecting a non-empty file name", nameof(filename));
     }
@@ -68,6 +68,7 @@ public class ProjectFile
       var projectNodeLegacy = root.SelectSingleNode("/msb:Project", nsm);
       if(projectNodeLegacy != null)
       {
+        // Legacy (non-'SDK') project file. 
         var projectReferences = root.Select("//msb:ProjectReference", nsm);
         var prjrefs = new List<ProjectReference>();
         foreach(XPathNavigator node in projectReferences)
@@ -76,7 +77,7 @@ public class ProjectFile
           var projectText = (string)node.Evaluate("string(msb:Project)", nsm);
           var name = (string)node.Evaluate("string(msb:Name)", nsm);
           var project = Guid.Parse(projectText);
-          prjrefs.Add(new ProjectReference(name, /*project,*/ include));
+          prjrefs.Add(new ProjectReference(name, project, include));
         }
         var targetNodes = root.Select("//msb:TargetFrameworkVersion", nsm);
         var targets = new HashSet<string>();
@@ -89,6 +90,9 @@ public class ProjectFile
       }
       else
       {
+        // SDK style project. Note that this has no concept of 'project GUID'
+        // directly, nor in project references. For uniqueness we need those
+        // though, so we need to get that information from the solution info object.
         var projectNodeSdk = root.SelectSingleNode("/Project", nsm);
         if(projectNodeSdk == null)
         {
@@ -108,7 +112,13 @@ public class ProjectFile
             // This is the expected code path.
             name = Path.GetFileNameWithoutExtension(include);
           }
-          prjrefs.Add(new ProjectReference(name, include));
+          var refSpi = si.FindProjectInfoForProjectFile(include);
+          if(refSpi == null)
+          {
+            throw new InvalidOperationException(
+              $"Internal error: Project file not found in solution file: '{include}'");
+          }
+          prjrefs.Add(new ProjectReference(name, refSpi.Id, include));
         }
         var targetNodes = projectNodeSdk.Select("PropertyGroup/TargetFrameworks");
         var targets = new HashSet<string>();
@@ -135,7 +145,7 @@ public class ProjectFile
         return new ProjectFile(prjrefs, sdk, targets);
       }
     }
-    catch (Exception ex)
+    catch(Exception ex)
     {
       throw new InvalidOperationException(
         $"Error while loading project file '{filename}'",

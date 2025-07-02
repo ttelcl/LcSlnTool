@@ -50,20 +50,27 @@ public class ProjectDetails
   /// </summary>
   public string ProjectTypeName { get { return ProjectTypes.ProjectTypeName(ProjectTypeId); } }
 
-  ///// <summary>
-  ///// Identifies the project (forwarded from Meta)
-  ///// </summary>
-  //public Guid Id { get { return Meta.Id; } }
-
   /// <summary>
   /// Name for the project (forwarded from Meta)
   /// </summary>
   public string Label { get { return Meta.Label; } }
 
   /// <summary>
+  /// Key for the project (forwarded from Meta)
+  /// </summary>
+  public string Key { get { return Meta.Key; } }
+
+  /// <summary>
   /// The project references (forwarded from Content)
   /// </summary>
-  public IReadOnlyList<ProjectReference> ProjectReferences { get { return Content.ProjectReferences; } }
+  public IReadOnlyList<ProjectReference> ProjectReferences {
+    get { return Content.ProjectReferences; }
+  }
+
+  /// <summary>
+  /// The unique project ID
+  /// </summary>
+  public Guid ProjectId => Meta.Id;
 
 }
 

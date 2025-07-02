@@ -57,6 +57,7 @@ public class ProjectSummary
     }
     var prf = project.Content!;
     var name = project.Label;
+    var projectId = project.ProjectId;
     var treePath = project.Meta.SolutionTreePath();
     var id = project.Meta.Id;
     var directDependencies =
@@ -64,16 +65,16 @@ public class ProjectSummary
       .ProjectReferences
       .Select(r => r.Name)
       .ToHashSet(StringComparer.OrdinalIgnoreCase);
-    var pNode = graph.FindNodeById(name);
+    var pNode = graph.FindNodeById(projectId);
     if(pNode == null)
     {
       throw new InvalidOperationException(
-        "Internal error: project not found in dependency graph");
+        $"Internal error: project '{projectId}' not found in dependency graph");
     }
     var deepDependencies =
       graph
       .GetDeepDependsOn(pNode)
-      .Select(n => n.Label)
+      .Select(n => n.Key)
       .ToHashSet(StringComparer.OrdinalIgnoreCase);
     var references = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
     foreach(var deepDep in deepDependencies)
