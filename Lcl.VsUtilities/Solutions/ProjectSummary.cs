@@ -26,20 +26,19 @@ public class ProjectSummary
     string treePath,
     string projectPath,
     Guid id,
-    IReadOnlyDictionary<string, bool> references,
     string? sdk,
-    IEnumerable<string> frameworks)
+    IEnumerable<string> frameworks,
+    IEnumerable<string> directrefs,
+    IEnumerable<string> allrefs)
   {
     Name = name;
     TreePath = treePath;
     ProjectPath = projectPath;
     Id = id;
-    References = references.ToDictionary(
-      kvp => kvp.Key,
-      kvp => kvp.Value,
-      StringComparer.OrdinalIgnoreCase);
     Sdk = sdk;
     Frameworks = frameworks.ToList().AsReadOnly();
+    DirectRefs = directrefs.ToList();
+    AllRefs = allrefs.ToList();
   }
 
   /// <summary>
@@ -87,9 +86,10 @@ public class ProjectSummary
       treePath,
       project.Meta.Path,
       id,
-      references,
       prf.Sdk,
-      prf.Frameworks);
+      prf.Frameworks,
+      directDependencies,
+      deepDependencies);
   }
 
   /// <summary>
@@ -117,11 +117,16 @@ public class ProjectSummary
   public Guid Id { get; }
 
   /// <summary>
-  /// The names of projects this one depends on; with value 'true' for
-  /// direct references and 'false' for indirect ones.
+  /// The names of projects this one directly depends on
   /// </summary>
-  [JsonProperty("references")]
-  public IReadOnlyDictionary<string, bool> References { get; }
+  [JsonProperty("directrefs")]
+  public IReadOnlyList<string> DirectRefs { get; }
+
+  /// <summary>
+  /// The names of projects this one depends on directly or indirectly
+  /// </summary>
+  [JsonProperty("allrefs")]
+  public IReadOnlyList<string> AllRefs { get; }
 
   /// <summary>
   /// The SDK used by this project, if known

@@ -15,10 +15,11 @@ namespace Lcl.VsUtilities.Solutions;
 /// </summary>
 public class ProjectDependencyGraph
 {
-  private Dictionary<string, ProjectNode> _nodes;
+  private Dictionary<string, GraphProjectNode> _nodes;
   private List<ProjectReference> _missingTargets;
   private Dictionary<string, HashSet<string>>? _deepDependsOnCache = null;
   private Dictionary<string, HashSet<string>>? _deepDependentOfCache = null;
+  private IReadOnlyList<GraphProjectNode>? _topoSortList = null;
 
   /// <summary>
   /// Create a new ProjectDependencyGraph
@@ -27,14 +28,15 @@ public class ProjectDependencyGraph
   {
     Solution = sln;
     _missingTargets = new List<ProjectReference>();
-    _nodes = new Dictionary<string, ProjectNode>(StringComparer.OrdinalIgnoreCase);
+    _nodes = new Dictionary<string, GraphProjectNode>(StringComparer.OrdinalIgnoreCase);
     _deepDependsOnCache = null;
     _deepDependentOfCache = null;
+    _topoSortList = null;
 
     // initialize nodes (without initializing references)
     foreach(var prj in Solution.Projects)
     {
-      var node = new ProjectNode(this, prj);
+      var node = new GraphProjectNode(this, prj);
       _nodes[node.Label] = node;
     }
 
@@ -63,16 +65,16 @@ public class ProjectDependencyGraph
   /// <summary>
   /// Enumerate the project nodes
   /// </summary>
-  public IEnumerable<ProjectNode> Nodes { get { return _nodes.Values; } }
+  public IEnumerable<GraphProjectNode> Nodes { get { return _nodes.Values; } }
 
   /// <summary>
   /// Remove nodes that are not referenced nor have references that started
   /// as stub nodes (i.e. no project information was available). Returns
   /// a list of the removed nodes.
   /// </summary>
-  public IReadOnlyList<ProjectNode> StripSingletonStubs()
+  public IReadOnlyList<GraphProjectNode> StripSingletonStubs()
   {
-    var list = new List<ProjectNode>();
+    var list = new List<GraphProjectNode>();
     foreach(var node in _nodes.Values)
     {
       if(node.IsLeaf && node.IsRoot && node.IsStub)
@@ -86,13 +88,14 @@ public class ProjectDependencyGraph
     }
     _deepDependentOfCache = null;
     _deepDependsOnCache = null;
+    _topoSortList = null;
     return list.AsReadOnly();
   }
 
   /// <summary>
   /// Find a project node by Name, returning null if not found
   /// </summary>
-  public ProjectNode? FindNodeById(string name)
+  public GraphProjectNode? FindNodeById(string name)
   {
     return _nodes.TryGetValue(name, out var node) ? node : null;
   }
@@ -129,7 +132,7 @@ public class ProjectDependencyGraph
   /// Find the ids of projects a project depends on, that none of its
   /// recursive dependencies themselves depend on
   /// </summary>
-  public HashSet<string> FindPureDependencies(ProjectNode node)
+  public HashSet<string> FindPureDependencies(GraphProjectNode node)
   {
     if(_deepDependsOnCache == null)
     {
@@ -151,7 +154,7 @@ public class ProjectDependencyGraph
   /// Calculate the list of all nodes the specified node depends on
   /// (directly or indirectly)
   /// </summary>
-  public IReadOnlyList<ProjectNode> GetDeepDependsOn(ProjectNode node)
+  public IReadOnlyList<GraphProjectNode> GetDeepDependsOn(GraphProjectNode node)
   {
     if(_deepDependsOnCache == null)
     {
@@ -159,7 +162,7 @@ public class ProjectDependencyGraph
         StringComparer.OrdinalIgnoreCase);
     }
     var idSet = _GetDeepChildIds(_deepDependsOnCache, node, n => n.DependsOn, 32);
-    var list = new List<ProjectNode>(
+    var list = new List<GraphProjectNode>(
       from id in idSet
       let n = FindNodeById(id)
       // orderby n.Project.Label
@@ -171,7 +174,7 @@ public class ProjectDependencyGraph
   /// Calculate the list of all nodes that depend on the specified node
   /// (directly or indirectly)
   /// </summary>
-  public IReadOnlyList<ProjectNode> GetDeepDependentOf(ProjectNode node)
+  public IReadOnlyList<GraphProjectNode> GetDeepDependentOf(GraphProjectNode node)
   {
     if(_deepDependentOfCache == null)
     {
@@ -179,7 +182,7 @@ public class ProjectDependencyGraph
         StringComparer.OrdinalIgnoreCase);
     }
     var idSet = _GetDeepChildIds(_deepDependentOfCache, node, n => n.DependentOf, 32);
-    var list = new List<ProjectNode>(
+    var list = new List<GraphProjectNode>(
       from id in idSet
       let n = FindNodeById(id)
       // orderby n.Project.Label
@@ -187,10 +190,73 @@ public class ProjectDependencyGraph
     return list.AsReadOnly();
   }
 
+  /// <summary>
+  /// Return the list of nodes in topologically sorted order, starting
+  /// from nodes that have no dependencies. This returns a cached copy
+  /// after the first call.
+  /// </summary>
+  public IReadOnlyList<GraphProjectNode> TopologicallySorted {
+    get {
+      if(_topoSortList == null)
+      {
+        _topoSortList = TopologicallySort();
+      }
+      return _topoSortList;
+    }
+  }
+
+  /// <summary>
+  /// Return the list of nodes in topologically sorted order, starting
+  /// from nodes that have no dependencies
+  /// </summary>
+  private IReadOnlyList<GraphProjectNode> TopologicallySort()
+  {
+    var result = new List<GraphProjectNode>();
+    var freeNodes = new List<GraphProjectNode>();
+    var pendinglinks = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+    foreach(var node in _nodes.Values)
+    {
+      var count = node.DependsOn.Count;
+      node.Set(pendinglinks, count);
+      if(count == 0)
+      {
+        freeNodes.Add(node);
+      }
+    }
+    var candidates = new List<GraphProjectNode>();
+    while(freeNodes.Count > 0)
+    {
+      candidates.Clear();
+      foreach(var node in freeNodes)
+      {
+        result.Add(node);
+        foreach(var child in node.DependentOf)
+        {
+          var childPendingCount = child.Lookup(pendinglinks) - 1;
+          child.Set(pendinglinks, childPendingCount);
+          if(childPendingCount == 0)
+          {
+            candidates.Add(child);
+          }
+        }
+      }
+      // swap the lists
+      var tmp = freeNodes;
+      freeNodes = candidates;
+      candidates = tmp;
+    }
+    if(result.Count != _nodes.Count)
+    {
+      throw new InvalidOperationException(
+        $"Dependency graph is not acyclic. {_nodes.Count - result.Count} nodes unaccounted for");
+    }
+    return result.AsReadOnly();
+  }
+
   private HashSet<string> _GetDeepChildIds(
     Dictionary<string, HashSet<string>> cache,
-    ProjectNode node,
-    Func<ProjectNode, IEnumerable<ProjectNode>> getChildren,
+    GraphProjectNode node,
+    Func<GraphProjectNode, IEnumerable<GraphProjectNode>> getChildren,
     int recursionGuard)
   {
     if(cache.TryGetValue(node.Label, out var result))
@@ -218,8 +284,8 @@ public class ProjectDependencyGraph
 
   private int GetNodeLevelFor(
     Dictionary<string, int> cache,
-    ProjectNode node,
-    Func<ProjectNode, IEnumerable<ProjectNode>> getChildren,
+    GraphProjectNode node,
+    Func<GraphProjectNode, IEnumerable<GraphProjectNode>> getChildren,
     int recursionGuard)
   {
     int level;
@@ -245,109 +311,10 @@ public class ProjectDependencyGraph
     return level;
   }
 
-  private void RegisterDependence(ProjectNode depender, ProjectNode dependee)
+  private void RegisterDependence(GraphProjectNode depender, GraphProjectNode dependee)
   {
     depender.RegisterDependenceOn(dependee);
     dependee.RegisterDependentOf(depender);
   }
-}
-
-/// <summary>
-/// A node in the project dependency graph
-/// </summary>
-public class ProjectNode
-{
-  private List<ProjectNode> _dependsOn;
-  private List<ProjectNode> _dependentOf;
-
-  internal ProjectNode(ProjectDependencyGraph owner, ProjectDetails project)
-  {
-    Owner = owner;
-    Project = project;
-    _dependsOn = new List<ProjectNode>();
-    _dependentOf = new List<ProjectNode>();
-    DependsOn = _dependsOn.AsReadOnly();
-    DependentOf = _dependentOf.AsReadOnly();
-  }
-
-  /// <summary>
-  /// The graph this is part of
-  /// </summary>
-  public ProjectDependencyGraph Owner { get; }
-
-  /// <summary>
-  /// The project this node describes
-  /// </summary>
-  public ProjectDetails Project { get; }
-
-  /// <summary>
-  /// The list of nodes this project depends on
-  /// </summary>
-  public IReadOnlyList<ProjectNode> DependsOn { get; }
-
-  /// <summary>
-  /// The list of nodes that depend on this project
-  /// </summary>
-  public IReadOnlyList<ProjectNode> DependentOf { get; }
-
-  /// <summary>
-  /// True if this is a leaf node, not depending on any other nodes
-  /// </summary>
-  public bool IsLeaf { get { return DependsOn.Count == 0; } }
-
-  /// <summary>
-  /// True if this is a root node, that no other nodes depend on
-  /// </summary>
-  public bool IsRoot { get { return DependentOf.Count == 0; } }
-
-  ///// <summary>
-  ///// The id of this node's project
-  ///// </summary>
-  //public Guid Id { get { return Project.Id; } }
-
-  /// <summary>
-  /// Get the project label
-  /// </summary>
-  public string Label { get { return Project.Label; } }
-
-  ///// <summary>
-  ///// Return the project ID in a form that is safe to use as identifier
-  ///// </summary>
-  //public string IdString { get { return "X" + Project.Id.ToString("N"); } }
-
-  /// <summary>
-  /// True if this is a node of a stub project (such as a solution folder)
-  /// that is not likely to be truly part of the dependency graph
-  /// </summary>
-  public bool IsStub { get { return Project.IsStub; } }
-
-  /// <summary>
-  /// Look up the value for this node in the specified map, returning the
-  /// specified default value if not found
-  /// </summary>
-  public T Lookup<T>(Dictionary<string, T> map, T defaultValue)
-  {
-    return map.TryGetValue(Label, out var t) ? t : defaultValue;
-  }
-
-  /// <summary>
-  /// Look up the value for this node in the specified map, throwing 
-  /// an exception if not found
-  /// </summary>
-  public T Lookup<T>(Dictionary<string, T> map)
-  {
-    return map[Label];
-  }
-
-  internal void RegisterDependenceOn(ProjectNode target)
-  {
-    _dependsOn.Add(target);
-  }
-
-  internal void RegisterDependentOf(ProjectNode source)
-  {
-    _dependentOf.Add(source);
-  }
-
 }
 

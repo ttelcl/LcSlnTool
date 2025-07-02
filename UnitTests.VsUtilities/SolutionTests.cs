@@ -60,6 +60,7 @@ public class SolutionTests
 
     var graph = new ProjectDependencyGraph(solution);
     Assert.NotNull(graph);
+    graph.StripSingletonStubs();
 
     var summaries = solution.BuildProjectSummaries(graph);
     Assert.NotNull(summaries);

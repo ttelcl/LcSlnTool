@@ -42,7 +42,7 @@ public static class DependencyReport
   }
 
   private static DependsOnNode GetDependsOnNode(
-    Dictionary<string, DependsOnNode> cache, ProjectNode source, int maxRecurse)
+    Dictionary<string, DependsOnNode> cache, GraphProjectNode source, int maxRecurse)
   {
     if(cache.TryGetValue(source.Label, out var dn))
     {
@@ -63,7 +63,7 @@ public static class DependencyReport
   }
 
   private static DependentOfNode GetDependentOfNode(
-    Dictionary<string, DependentOfNode> cache, ProjectNode source, int maxRecurse)
+    Dictionary<string, DependentOfNode> cache, GraphProjectNode source, int maxRecurse)
   {
     if(cache.TryGetValue(source.Label, out var dn))
     {

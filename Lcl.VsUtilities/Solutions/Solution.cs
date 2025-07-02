@@ -60,14 +60,6 @@ public class Solution
   /// </summary>
   public IReadOnlyList<ProjectDetails> Projects { get; }
 
-  ///// <summary>
-  ///// Try to find project information by project Id, returning null if not found
-  ///// </summary>
-  //public ProjectDetails? FindProjectById(Guid id)
-  //{
-  //  return _projectMap.TryGetValue(id, out var pd) ? pd : null;
-  //}
-
   /// <summary>
   /// Build the JSON serializable project summaries and collect them in a map
   /// </summary>
@@ -77,11 +69,7 @@ public class Solution
     ProjectDependencyGraph graph)
   {
     var map = new Dictionary<string, ProjectSummary>(StringComparer.OrdinalIgnoreCase);
-    var projects =
-      from project in Projects
-      orderby project.Label
-      select project;
-    foreach(var project in projects)
+    foreach(var project in Projects)
     {
       var summary = ProjectSummary.FromProject(project, graph);
       if(summary != null)
@@ -89,7 +77,13 @@ public class Solution
         map[summary.Name] = summary;
       }
     }
-    return map;
+    var sortguide = graph.TopologicallySorted;
+    var result =
+      sortguide
+      .Where(n => map.ContainsKey(n.Label))
+      .Select(n => map[n.Label])
+      .ToDictionary(s => s.Name, s => s, StringComparer.OrdinalIgnoreCase);
+    return result;
   }
 
 }
