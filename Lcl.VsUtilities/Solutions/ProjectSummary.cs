@@ -152,4 +152,26 @@ public class ProjectSummary
   /// </summary>
   [JsonProperty("frameworks")]
   public IReadOnlyList<string> Frameworks { get; }
+
+  /// <summary>
+  /// The single target framework, or "(multiple)" if there are multiple,
+  /// or "" if there are none
+  /// </summary>
+  [JsonProperty("framework")]
+  public string Framework {
+    get {
+      if(Frameworks.Count == 0)
+      {
+        return "";
+      }
+      else if(Frameworks.Count == 1)
+      {
+        return Frameworks[0];
+      }
+      else
+      {
+        return "(multiple)";
+      }
+    }
+  }
 }

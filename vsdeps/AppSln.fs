@@ -5,6 +5,8 @@ open System.IO
 
 open Newtonsoft.Json
 
+open XsvLib
+
 open Lcl.VsUtilities.Solutions
 
 open ColorPrint
@@ -35,6 +37,9 @@ let rec searchSolution folder =
       None
     else
       parent |> searchSolution
+
+let private nullToEmpty (txt: string) =
+  if txt = null then String.Empty else txt
 
 let private runSln o =
   let slnfile =
@@ -72,6 +77,73 @@ let private runSln o =
       cp $"Saving \fg{jsonName}\f0."
       File.WriteAllText(jsonName + ".tmp", json)
       jsonName |> finishFile
+    let projectCsvName = prefix + ".projects.csv"
+    cp $"Saving \fg{projectCsvName}\f0."
+    let sortedNodes = graph.TopologicallySorted
+    do
+      let columns =
+        new XsvOutBuffer([
+          "name"
+          "index"
+          "refcount"
+          "depcount"
+          "framework"
+          "sdk"
+          ])
+      let colName = "name" |> columns.GetColumn
+      let colSdk = "sdk" |> columns.GetColumn
+      let colIndex = "index" |> columns.GetColumn
+      let colFramework = "framework" |> columns.GetColumn
+      let colRefCount = "refcount" |> columns.GetColumn
+      let colDepCount = "depcount" |> columns.GetColumn
+      use itrw = Xsv.WriteXsv(projectCsvName + ".tmp", 0)
+      columns.EmitHeader itrw
+      for node in sortedNodes do
+        let framework =
+          match node.Project.Content.Frameworks.Count with
+          | 0 -> ""
+          | 1 -> node.Project.Content.Frameworks[0]
+          | _ -> "(multiple)"
+        columns[colName] <- node.Label
+        columns[colSdk] <- node.Project.Content.Sdk |> nullToEmpty
+        columns[colIndex] <- node.TopoSortOrder |> string
+        columns[colFramework] <- framework
+        columns[colRefCount] <- node.DependsOn.Count |> string
+        columns[colDepCount] <- node.DependentOf.Count |> string
+        columns.Emit itrw
+    projectCsvName |> finishFile
+    let depCsvName = prefix + ".dependencies.csv"
+    cp $"Saving \fg{depCsvName}\f0."
+    do
+      let columns =
+        new XsvOutBuffer([
+          "refFw"
+          "ref"
+          "refIdx"
+          "asmFw"
+          "asm"
+          "asmIdx"
+          ])
+      let colAsm = "asm" |> columns.GetColumn
+      let colRef = "ref" |> columns.GetColumn
+      let colAsmFw = "asmFw" |> columns.GetColumn
+      let colRefFw = "refFw" |> columns.GetColumn
+      let colAsmIdx = "asmIdx" |> columns.GetColumn
+      let colRefIdx = "refIdx" |> columns.GetColumn
+      use itrw = Xsv.WriteXsv(depCsvName + ".tmp", 0)
+      columns.EmitHeader itrw
+      for asmNode in sortedNodes do
+        for refNode in asmNode.DependsOn do
+          let asmFw = String.Join("; ", asmNode.Project.Content.Frameworks)
+          let refFw = String.Join("; ", refNode.Project.Content.Frameworks)
+          columns[colAsm] <- asmNode.Label
+          columns[colRef] <- refNode.Label
+          columns[colAsmFw] <- asmFw
+          columns[colRefFw] <- refFw
+          columns[colAsmIdx] <- asmNode.TopoSortOrder |> string
+          columns[colRefIdx] <- refNode.TopoSortOrder |> string
+          columns.Emit itrw
+    depCsvName |> finishFile
     0
 
 let run args =

@@ -22,6 +22,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="TteLcl.XsvLib" Version="2.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Lcl.VsUtilities\Lcl.VsUtilities.csproj" />
   </ItemGroup>
 
