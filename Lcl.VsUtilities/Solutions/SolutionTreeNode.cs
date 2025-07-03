@@ -78,22 +78,21 @@ public class SolutionTreeNode
   /// <summary>
   /// The project GUID (used to identify the project in the solution)
   /// </summary>
-  [JsonProperty("id")]
+  [JsonIgnore] // [JsonProperty("id")]
   public Guid Id {  get; }
 
   /// <summary>
   /// The friendly name of the project type, if known. A name
   /// derived from the project type id otherwise
   /// </summary>
-  [JsonProperty("type")]
+  [JsonIgnore] // [JsonProperty("type")]
   public string ProjectType { get; }
 
   /// <summary>
   /// The project type id
   /// </summary>
-  [JsonProperty("typeid")]
+  [JsonIgnore] // [JsonProperty("typeid")]
   public Guid ProjectTypeId { get; }
-
 
   /// <summary>
   /// Child projects, if any. Only appears for Solution Folder 'projects'

@@ -74,17 +74,8 @@ public class ProjectSummary
     var deepDependencies =
       graph
       .GetDeepDependsOn(pNode)
-      .Select(n => n.Key)
+      .Select(n => n.Label)
       .ToHashSet(StringComparer.OrdinalIgnoreCase);
-    var references = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
-    foreach(var deepDep in deepDependencies)
-    {
-      references[deepDep] = false;
-    }
-    foreach(var directDep in directDependencies)
-    {
-      references[directDep] = true;
-    }
     return new ProjectSummary(
       name,
       treePath,
