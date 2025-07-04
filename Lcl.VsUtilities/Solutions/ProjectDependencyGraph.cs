@@ -193,6 +193,84 @@ public class ProjectDependencyGraph
   }
 
   /// <summary>
+  /// Save a GraphViz *.dot file depicting projects and dependencies,
+  /// from leaf nodes to root nodes
+  /// </summary>
+  /// <param name="dotFileName">
+  /// The name of the file to save
+  /// </param>
+  /// <param name="pureOnly">
+  /// Leave out redundant edges if true
+  /// </param>
+  /// <param name="vertical">
+  /// If true: use a vertical layout
+  /// </param>
+  public void SaveDotFile(
+    string dotFileName,
+    bool pureOnly,
+    bool vertical)
+  {
+    using var dot = new DotFileWriter(
+      dotFileName,
+      true,
+      !vertical,
+      Solution.Info.Name);
+    var nodes = TopologicallySorted.ToList();
+    nodes.Reverse();
+    foreach(var node in Nodes)
+    {
+      var color =
+        node.IsRoot
+        ? node.IsLeaf ? "#FF9977" : "#FFFF77"
+        : node.IsLeaf ? "#99FF99" : "#DDDDDD";
+      dot.AddNode(
+        node.Label,
+        node.Project.Content.Frameworks,
+        shape: "box",
+        style: "filled",
+        color: color,
+        id: node.Label);
+    }
+    foreach(var node in Nodes)
+    {
+      var pureIds = FindPureDependencies(node);
+      var nodeFrameworks =
+        node.Project.Content.Frameworks.ToHashSet(
+          StringComparer.OrdinalIgnoreCase);
+      foreach(var dnode in node.DependsOn)
+      {
+        var dnodeFrameworks =
+          dnode.Project.Content.Frameworks.ToHashSet(
+            StringComparer.OrdinalIgnoreCase);
+        var sameFrameworks = nodeFrameworks.SetEquals(dnodeFrameworks);
+        var isPure = pureIds.Contains(dnode.ProjectId);
+        if(pureOnly)
+        {
+          if(isPure) // else: ignore edge
+          {
+            var color = sameFrameworks ? "#228822" : "#DD5522";
+            dot.AddEdge(
+              node.Label,
+              dnode.Label,
+              weightless: false,
+              color: color);
+          }
+        }
+        else
+        {
+          var color =
+            isPure ? sameFrameworks ? "#228822" : "#DD5522" : "#999999";
+          dot.AddEdge(
+            node.Label,
+            dnode.Label,
+            weightless: !isPure,
+            color: color);
+        }
+      }
+    }
+  }
+
+  /// <summary>
   /// Return the list of nodes in topologically sorted order, starting
   /// from nodes that have no dependencies. This returns a cached copy
   /// after the first call.
