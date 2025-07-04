@@ -144,6 +144,18 @@ let private runSln o =
           columns[colRefIdx] <- refNode.TopoSortOrder |> string
           columns.Emit itrw
     depCsvName |> finishFile
+    do
+      let fulldotName = prefix + ".full.dot"
+      cp $"Saving \fg{fulldotName}\f0."
+      graph.SaveDotFile(fulldotName + ".tmp", false, false)
+      fulldotName |> finishFile
+      cp $"   Reminder: use \fydot -Tsvg -O {fulldotName}\f0 to generate SVG from this file"
+    //do
+    //  let puredotName = prefix + ".pure.dot"
+    //  cp $"Saving \fg{puredotName}\f0."
+    //  graph.SaveDotFile(puredotName + ".tmp", true, false)
+    //  puredotName |> finishFile
+    //  cp $"   Reminder: use \fydot -Tsvg -O {puredotName}\f0 to generate SVG from this file"
     0
 
 let run args =
