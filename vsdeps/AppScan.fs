@@ -8,6 +8,7 @@ open Newtonsoft.Json
 open XsvLib
 
 open Lcl.VsUtilities.Solutions
+open Lcl.VsUtilities.Solutions.V2
 
 open ColorPrint
 open CommonTools
@@ -17,7 +18,27 @@ type private ScanOptions = {
   Root: string
 }
 
+type private SlnFile = {
+  FilePath: string
+  Name: string
+}
+
+
 let private runScan o =
+  let prefixLength = Environment.CurrentDirectory.Length
+  let slnFileFromFile (fileName:string) =
+    {
+      FilePath = fileName.Substring(prefixLength)
+      Name = fileName |> Path.GetFileNameWithoutExtension
+    }
+  let slnFiles =
+    FileFinder.FindFilesRecursive(o.Root, "*.sln")
+    |> Seq.map slnFileFromFile
+    |> Seq.toArray
+    |> Array.sortBy(fun sf -> $"{sf.Name} ! {sf.FilePath}".ToLowerInvariant())
+  cp $"Found \fb{slnFiles.Length}\f0 solution files:"
+  for slnFile in slnFiles do
+    cp $"  \fg{slnFile.Name}\f0 (\fk{slnFile.FilePath}\f0)"
   cp "\frNYI\f0."
   1
 
