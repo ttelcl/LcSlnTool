@@ -100,6 +100,14 @@ public class SolutionProjectInfo
   public string Path { get; }
 
   /// <summary>
+  /// True if we (probably) can do something with the project file:
+  /// it is a C# or F# project.
+  /// </summary>
+  public bool CanAnalyze =>
+      Path.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)
+      || Path.EndsWith(".fsproj", StringComparison.OrdinalIgnoreCase);
+
+  /// <summary>
   /// Get a name for the project type
   /// </summary>
   public string ProjectTypeName => ProjectTypes.ProjectTypeName(ProjectTypeId);
