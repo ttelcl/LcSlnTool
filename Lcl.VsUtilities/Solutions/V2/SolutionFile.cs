@@ -19,6 +19,8 @@ namespace Lcl.VsUtilities.Solutions.V2;
 /// </summary>
 public class SolutionFile
 {
+  private readonly List<ProjectFile2> _projectFiles;
+
   /// <summary>
   /// Create a new SolutionFile
   /// </summary>
@@ -33,6 +35,8 @@ public class SolutionFile
     string fileName,
     string? prefix = null)
   {
+    _projectFiles = [];
+    RecognizedProjects = _projectFiles.AsReadOnly();
     FullName = Path.GetFullPath(fileName);
     if(String.IsNullOrEmpty(prefix))
     {
@@ -78,6 +82,8 @@ public class SolutionFile
     string prefix = "",
     int index = 0) // not actually used; Index is initialized from "id"
   {
+    _projectFiles = [];
+    RecognizedProjects = _projectFiles.AsReadOnly();
     var idparts = id.Split('#');
     if(idparts.Length == 2)
     {
@@ -157,9 +163,17 @@ public class SolutionFile
   /// The number of analyzable projects loaded (0 before calling
   /// <see cref="Load"/>)
   /// </summary>
-  [JsonProperty("recognizedprojects")]
+  [JsonProperty("recognizedprojectcount")]
   public int SupportedProjectCount =>
     Content?.Projects.Count(p => p.CanAnalyze) ?? 0;
+
+  /// <summary>
+  /// Project information for the projects of recognized types in this
+  /// solution. Empty before calling <see cref="Load"/> and
+  /// <see cref="LinkProjects"/>.
+  /// </summary>
+  [JsonProperty("recognizedprojects")]
+  public IReadOnlyList<ProjectFile2> RecognizedProjects { get; }
 
   /// <summary>
   /// True if there are any supported projects at all
@@ -187,4 +201,22 @@ public class SolutionFile
   /// </summary>
   [JsonIgnore]
   public SolutionInfo? Content { get; private set; }
+
+  public void LinkProjects()
+  {
+    if(Content == null)
+    {
+      throw new InvalidOperationException(
+        "Expecting a call to Load() first");
+    }
+    _projectFiles.Clear();
+    foreach(var spi in Content.Projects)
+    {
+      var pf2 = ProjectFile2.TryCreate(this, spi);
+      if(pf2 != null)
+      {
+        _projectFiles.Add(pf2);
+      }
+    }
+  }
 }

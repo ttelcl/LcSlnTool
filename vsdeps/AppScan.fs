@@ -45,6 +45,11 @@ let private runScan o =
       if solutions.Length <> 1 then
         slnFile.Index <- i+1;
     
+  // Only now the solution IDs are assigned and the project file references can be
+  // converted into the V2 form
+  for slnFile in slnFiles do
+    slnFile.LinkProjects()
+
   let solutionsCsvName = $"{o.Tag}.solutions.csv"
   do
     use csv = solutionsCsvName |> startFile
@@ -74,9 +79,39 @@ let private runScan o =
     let json = JsonConvert.SerializeObject(supportedSolutions, Formatting.Indented)
     jw.WriteLine(json)
   solutionsJsonName |> finishFile
+  
+  let projectsCsvName = $"{o.Tag}.projects.csv"
+  let projects =
+    supportedSolutions
+    |> Seq.collect (fun sf -> sf.RecognizedProjects)
+    |> Seq.sortBy (fun pf2 -> (pf2.Label.ToLowerInvariant(), pf2.SolutionId.ToLowerInvariant()))
+    |> Seq.toArray
+  do
+    use csv = projectsCsvName |> startFile
+    csv.WriteLine("label,solution,projectfile,name");
+    for pf2 in projects do
+      csv.WriteLine($"{pf2.Label},{pf2.SolutionId},{pf2.FullPath},{pf2.Name}")
+  projectsCsvName |> finishFile
+
+  cp "Validating project name uniqueness"
+  let projectsByLabel =
+    projects |> Array.groupBy (fun pf2 -> pf2.Label)
+  for (label, prjs) in projectsByLabel do
+    if prjs.Length > 1 then // else: no need to check
+      let projectsByLabelAndPath =
+        prjs |> Array.groupBy (fun pf2 -> pf2.FullPath.ToLowerInvariant())
+      if projectsByLabelAndPath.Length > 1 then
+        let paths = projectsByLabelAndPath |> Array.map (fun (path,_) -> path)
+        let pathlist = String.Join(", ", paths)
+        cp $"\foNon-unique project name '\fr{label}\fo':\f0 {pathlist}\f0."
+      else
+        let (path, p3) = projectsByLabelAndPath[0]
+        let solutions = p3 |> Array.map (fun pf2 -> pf2.SolutionId)
+        let slnlist = String.Join("\f0, \fc", solutions)
+        cp $"Project '\fg{label}\f0' is referenced from \fb{p3.Length}\f0 solutions: \fc{slnlist}\f0."
+  
   cp ""
-  cp "\frNYI\f0."
-  1
+  0
 
 let run args =
   let rec parsemore o args =
