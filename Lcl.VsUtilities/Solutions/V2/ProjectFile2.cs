@@ -15,7 +15,8 @@ using Newtonsoft.Json;
 namespace Lcl.VsUtilities.Solutions.V2;
 
 /// <summary>
-/// Revised "project file" pointer
+/// Revised "project file" pointer, used as component in a
+/// solution-oriented view.
 /// </summary>
 public class ProjectFile2
 {
@@ -68,12 +69,6 @@ public class ProjectFile2
   }
 
   /// <summary>
-  /// The full path (reconstructed from the solution path and relative project path)
-  /// </summary>
-  [JsonProperty("fullpath")]
-  public string FullPath { get; }
-
-  /// <summary>
   /// The project label as found in the solution file.
   /// Expected to be the same as <see cref="Name"/>
   /// </summary>
@@ -81,16 +76,22 @@ public class ProjectFile2
   public string Label { get; }
 
   /// <summary>
+  /// The solution ID
+  /// </summary>
+  [JsonProperty("solutionid")]
+  public string SolutionId { get; }
+
+  /// <summary>
+  /// The full path (reconstructed from the solution path and relative project path)
+  /// </summary>
+  [JsonProperty("fullpath")]
+  public string FullPath { get; }
+
+  /// <summary>
   /// The project name, derived from <see cref="FullPath"/>
   /// Expected to be the same as <see cref="Label"/>
   /// </summary>
   [JsonProperty("name")]
   public string Name { get; }
-
-  /// <summary>
-  /// The solution ID
-  /// </summary>
-  [JsonProperty("solutionid")]
-  public string SolutionId { get; }
 }
 

@@ -50,6 +50,8 @@ let private runScan o =
   for slnFile in slnFiles do
     slnFile.LinkProjects()
 
+  let solutionView = new SolutionView(supportedSolutions)
+
   let solutionsCsvName = $"{o.Tag}.solutions.csv"
   do
     use csv = solutionsCsvName |> startFile
@@ -76,7 +78,7 @@ let private runScan o =
   let solutionsJsonName = $"{o.Tag}.solutions.json"
   do
     use jw = solutionsJsonName |> startFile
-    let json = JsonConvert.SerializeObject(supportedSolutions, Formatting.Indented)
+    let json = JsonConvert.SerializeObject(solutionView, Formatting.Indented)
     jw.WriteLine(json)
   solutionsJsonName |> finishFile
   

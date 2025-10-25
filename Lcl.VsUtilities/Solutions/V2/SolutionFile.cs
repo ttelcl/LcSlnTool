@@ -153,6 +153,21 @@ public class SolutionFile
   }
 
   /// <summary>
+  /// The visual studio version associated with the solution
+  /// </summary>
+  [JsonProperty("vsversion")]
+  public string? VisualStudioVersion => Content?.VisualStudioVersion;
+
+  /// <summary>
+  /// Determines whether to serialize <see cref="VisualStudioVersion"/>
+  /// </summary>
+  /// <returns></returns>
+  public bool ShouldSerializeVisualStudioVersion()
+  {
+    return VisualStudioVersion != null && VisualStudioVersion != "0.0.0.0";
+  }
+
+  /// <summary>
   /// The number of projects loaded (0 before calling
   /// <see cref="Load"/>)
   /// </summary>
@@ -202,6 +217,9 @@ public class SolutionFile
   [JsonIgnore]
   public SolutionInfo? Content { get; private set; }
 
+  /// <summary>
+  /// Fill <see cref="RecognizedProjects"/>.
+  /// </summary>
   public void LinkProjects()
   {
     if(Content == null)
