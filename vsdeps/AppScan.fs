@@ -41,7 +41,7 @@ let private runScan o =
   let solutionsCsvName = $"{o.Tag}.solutions.csv"
   do
     use csv = solutionsCsvName |> startFile
-    csv.WriteLine("id,prefix,solution,index,count")
+    csv.WriteLine("id,solution,index,count")
     for solutions in solutionView.SolutionMap.Values do
       if solutions.Count = 1 then
         let slnFile = solutions[0]
@@ -50,7 +50,7 @@ let private runScan o =
         cpx $"  {color}{slnFile.Id}\f0 :"
         cpx $" \fb{slnFile.ProjectCount} \f0/\fc {slnFile.SupportedProjectCount}"
         cp $" \f0(\fk{slnFile.UiFullName}\f0)"
-        csv.WriteLine($"{slnFile.Id},{slnFile.Prefix},{slnFile.UiFullName},0,{slnFile.ProjectCount}")
+        csv.WriteLine($"{slnFile.Id},{slnFile.UiFullName},0,{slnFile.ProjectCount}")
       else
         for (i,slnFile) in solutions |> Seq.indexed do
           let hasSupportedProjects = slnFile.HasSupportedProjects
@@ -58,7 +58,7 @@ let private runScan o =
           cpx $"  {color}{slnFile.Id}\fy#{i+1}\f0 :"
           cpx $" \fb{slnFile.ProjectCount} \f0/\fc {slnFile.SupportedProjectCount}"
           cp $" \f0(\fk{slnFile.UiFullName}\f0)"
-          csv.WriteLine($"{slnFile.Id},{slnFile.Prefix},{slnFile.UiFullName},{i+1},{slnFile.ProjectCount}")
+          csv.WriteLine($"{slnFile.Id},{slnFile.UiFullName},{i+1},{slnFile.ProjectCount}")
   solutionsCsvName |> finishFile
 
   let solutionsJsonName = $"{o.Tag}.solutions.json"

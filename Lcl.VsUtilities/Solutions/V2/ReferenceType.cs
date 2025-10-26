@@ -9,28 +9,25 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using Newtonsoft.Json;
-
 namespace Lcl.VsUtilities.Solutions.V2;
 
 /// <summary>
-/// Project-oriented information
+/// Different reference types
 /// </summary>
-public class Project
+public enum ReferenceType
 {
   /// <summary>
-  /// Create a new Project
+  /// A plain reference (&lt;Reference&gt; element)
   /// </summary>
-  public Project(
-    string name)
-  {
-    Name = name;
-  }
+  Plain = 0,
 
   /// <summary>
-  /// The project name (label)
+  /// A project reference
   /// </summary>
-  [JsonProperty("name")]
-  public string Name { get; }
+  Project = 1,
 
+  /// <summary>
+  /// A package reference
+  /// </summary>
+  Package = 2,
 }
