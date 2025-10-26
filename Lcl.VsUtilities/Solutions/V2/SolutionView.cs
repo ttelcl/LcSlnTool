@@ -20,18 +20,71 @@ namespace Lcl.VsUtilities.Solutions.V2;
 public class SolutionView
 {
   /// <summary>
-  /// Create a new SolutionView from a prepared set of
-  /// <see cref="SolutionFile"/> objects (loaded and linked)
+  /// Create a new SolutionView (deserialization constructor)
   /// </summary>
   public SolutionView(
-    IEnumerable<SolutionFile> solutions)
+    IReadOnlyDictionary<string, IReadOnlyList<SolutionFile>> solutions)
   {
+    SolutionMap = new Dictionary<string, IReadOnlyList<SolutionFile>>(
+      solutions, StringComparer.OrdinalIgnoreCase);
+  }
+
+  /// <summary>
+  /// Create a new SolutionView from a set of
+  /// <see cref="SolutionFile"/> objects; optionally load and link
+  /// them.
+  /// </summary>
+  /// <param name="solutionFiles"></param>
+  /// <param name="prepare">
+  /// If true, <paramref name="solutionFiles"/> is assumed to contain
+  /// nascent <see cref="SolutionFile"/> instances that still need
+  /// Loading and Linking.
+  /// </param>
+  public static SolutionView FromSolutions(
+    IEnumerable<SolutionFile> solutionFiles,
+    bool prepare)
+  {
+    if(prepare)
+    {
+      foreach(var solutionFile in solutionFiles)
+      {
+        solutionFile.Load();
+      }
+      var supportedSolutions = solutionFiles.Where(sf => sf.HasSupportedProjects).ToList();
+      var groupedByName =
+        from solutionFile in supportedSolutions
+        group solutionFile by solutionFile.SolutionName.ToLowerInvariant();
+      foreach(var solutionGroup in groupedByName)
+      {
+        var solutions = solutionGroup.ToList();
+        for(var i = 0; i <solutions.Count; i++)
+        {
+          var sf = solutions[i];
+          if(solutions.Count > 1)
+          {
+            sf.Index = i+1; // side effect: change sf.Id to include index
+          }
+          else
+          {
+            sf.Index = 0; // side effect: sf.Id now == sf.SolutionName
+          }
+        }
+      }
+      // Only now the solution IDs are assigned and the project file references can be
+      // converted into the V2 form
+      foreach(var solutionFile in supportedSolutions)
+      {
+        solutionFile.LinkProjects();
+      }
+      solutionFiles = supportedSolutions;
+    }
     var grouped =
-      solutions.GroupBy(x => x.SolutionName);
+      solutionFiles.GroupBy(x => x.SolutionName);
     var map =
       grouped.ToDictionary(
-        g => g.Key, g => (IReadOnlyList<SolutionFile>)(g.ToList()));
-    Solutions = map;
+        g => g.Key, g => (IReadOnlyList<SolutionFile>)(g.ToList()),
+        StringComparer.OrdinalIgnoreCase);
+    return new SolutionView(map);
   }
 
   /// <summary>
@@ -40,5 +93,26 @@ public class SolutionView
   /// to one solution file.
   /// </summary>
   [JsonProperty("solutions")]
-  public IReadOnlyDictionary<string, IReadOnlyList<SolutionFile>> Solutions { get; }
+  public IReadOnlyDictionary<string, IReadOnlyList<SolutionFile>> SolutionMap { get; }
+
+  /// <summary>
+  /// Enumerate all solutions nested in <see cref="SolutionMap"/>
+  /// </summary>
+  [JsonIgnore]
+  public IEnumerable<SolutionFile> Solutions =>
+    SolutionMap.Values.SelectMany(solutions => solutions);
+
+  /// <summary>
+  /// Enumerate and sort the projects nested in <see cref="SolutionMap"/>
+  /// </summary>
+  /// <returns></returns>
+  public IEnumerable<ProjectFile2> EnumProjectsSorted()
+  {
+    var projects = Solutions.SelectMany(sf => sf.RecognizedProjects);
+    var sortedProjects =
+      from project in projects
+      orderby project.Label.ToLowerInvariant(), project.SolutionId.ToLowerInvariant()
+      select project;
+    return sortedProjects;
+  }
 }

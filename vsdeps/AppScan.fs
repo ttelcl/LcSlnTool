@@ -28,36 +28,22 @@ let private runScan o =
     |> Seq.toArray
     |> Array.sortBy(fun sf -> $"{sf.SolutionName} ! {sf.UiFullName}".ToLowerInvariant())
   
-  for slnFile in slnFiles do
-    slnFile.Load()
-
-  let supportedSolutions =
-    slnFiles |> Array.where(fun sf -> sf.HasSupportedProjects)
+  let solutionView =
+    SolutionView.FromSolutions(slnFiles, true)
   
+  let supportedSolutions = solutionView.Solutions |> Seq.toArray
   cp $"Found \fc{supportedSolutions.Length}\f0 / \fb{slnFiles.Length}\f0 solution files:"
   
-  let grouped =
-    supportedSolutions // slnFiles
-    |> Array.groupBy (fun sf -> sf.SolutionName.ToLowerInvariant())
+  let projects =
+    solutionView.EnumProjectsSorted()
+    |> Seq.toArray
   
-  for (_, solutions) in grouped do
-    for (i,slnFile) in solutions |> Seq.indexed do
-      if solutions.Length <> 1 then
-        slnFile.Index <- i+1;
-    
-  // Only now the solution IDs are assigned and the project file references can be
-  // converted into the V2 form
-  for slnFile in slnFiles do
-    slnFile.LinkProjects()
-
-  let solutionView = new SolutionView(supportedSolutions)
-
   let solutionsCsvName = $"{o.Tag}.solutions.csv"
   do
     use csv = solutionsCsvName |> startFile
     csv.WriteLine("id,prefix,solution,index,count")
-    for (_, solutions) in grouped do
-      if solutions.Length = 1 then
+    for solutions in solutionView.SolutionMap.Values do
+      if solutions.Count = 1 then
         let slnFile = solutions[0]
         let hasSupportedProjects = slnFile.HasSupportedProjects
         let color = if hasSupportedProjects then "\fg" else "\fk"
@@ -83,11 +69,6 @@ let private runScan o =
   solutionsJsonName |> finishFile
   
   let projectsCsvName = $"{o.Tag}.projects.csv"
-  let projects =
-    supportedSolutions
-    |> Seq.collect (fun sf -> sf.RecognizedProjects)
-    |> Seq.sortBy (fun pf2 -> (pf2.Label.ToLowerInvariant(), pf2.SolutionId.ToLowerInvariant()))
-    |> Seq.toArray
   do
     use csv = projectsCsvName |> startFile
     csv.WriteLine("label,solution,projectfile,name");
