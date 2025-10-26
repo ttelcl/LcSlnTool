@@ -93,6 +93,14 @@ let private runScan o =
         let slnlist = String.Join("\f0, \fc", solutions)
         cp $"Project '\fg{label}\f0' is referenced from \fb{p3.Length}\f0 solutions: \fc{slnlist}\f0."
   
+  let projectView = ProjectView.FromSolutionView(solutionView)
+  let projectViewJsonName = $"{o.Tag}.projectview.json"
+  do
+    use jw = projectViewJsonName |> startFile
+    let json = JsonConvert.SerializeObject(projectView, Formatting.Indented)
+    jw.WriteLine(json)
+  projectViewJsonName |> finishFile
+
   cp ""
   0
 
