@@ -50,4 +50,16 @@ public class ProjectFile3
   [JsonProperty("solutions")]
   public IReadOnlyList<SolutionInfo3> Solutions { get; }
 
+  /// <summary>
+  /// Return the references from this project to other assemblies.
+  /// </summary>
+  /// <param name="internalNames">
+  /// The set of assembly names to consider "internal"
+  /// </param>
+  /// <returns></returns>
+  public IEnumerable<ProjectRef> ParseReferences(
+    IReadOnlySet<string> internalNames)
+  {
+    return ProjectRef.ReadReferences(Name, FullPath, internalNames);
+  }
 }

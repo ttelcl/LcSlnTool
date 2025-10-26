@@ -28,6 +28,7 @@ public class ProjectView
     ProjectMap = new Dictionary<string, IReadOnlyList<ProjectFile3>>(
       projects,
       StringComparer.OrdinalIgnoreCase);
+    ProjectNames = new HashSet<string>(ProjectMap.Keys, StringComparer.OrdinalIgnoreCase);
   }
 
   /// <summary>
@@ -92,4 +93,20 @@ public class ProjectView
   [JsonProperty("projects")]
   public IReadOnlyDictionary<string, IReadOnlyList<ProjectFile3>> ProjectMap { get; }
 
+  /// <summary>
+  /// The set of project names in this view
+  /// </summary>
+  [JsonIgnore]
+  public IReadOnlySet<string> ProjectNames { get; }
+
+  /// <summary>
+  /// Parse all project files and return a sequence of references found
+  /// in them.
+  /// </summary>
+  /// <returns></returns>
+  public IEnumerable<ProjectRef> ParseReferences()
+  {
+    var projects = ProjectMap.Values.SelectMany(l => l);
+    return projects.SelectMany(pf3 => pf3.ParseReferences(ProjectNames));
+  }
 }

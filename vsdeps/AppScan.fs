@@ -101,6 +101,29 @@ let private runScan o =
     jw.WriteLine(json)
   projectViewJsonName |> finishFile
 
+  let references =
+    projectView.ParseReferences() |> Seq.toArray
+
+  let internalReferences =
+    references |> Array.where (fun r -> r.IsInternal)
+
+  cp $"Found \fb{references.Length}\f0 / \fc{internalReferences.Length}\f0 references"
+
+  let referenceJsonName = $"{o.Tag}.references.json"
+  do
+    use jw = referenceJsonName |> startFile
+    let json = JsonConvert.SerializeObject(references, Formatting.Indented)
+    jw.WriteLine(json)
+  referenceJsonName |> finishFile
+
+  let referenceCsvName = $"{o.Tag}.references.csv"
+  do
+    use csv = referenceCsvName |> startFile
+    csv.WriteLine("source,target,type,intern");
+    for r in references do
+      csv.WriteLine($"{r.SourceProject},{r.TargetProject},{r.RefType},{r.IsInternal}")
+  referenceCsvName |> finishFile
+
   cp ""
   0
 
