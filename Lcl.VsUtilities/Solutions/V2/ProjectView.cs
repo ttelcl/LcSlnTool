@@ -109,4 +109,51 @@ public class ProjectView
     var projects = ProjectMap.Values.SelectMany(l => l);
     return projects.SelectMany(pf3 => pf3.ParseReferences(ProjectNames));
   }
+
+  /// <summary>
+  /// A simplistic *.dot file writer
+  /// </summary>
+  /// <param name="fileName">
+  /// The name of the file to write
+  /// </param>
+  /// <param name="references">
+  /// The references to take into account
+  /// </param>
+  /// <param name="horizontal"></param>
+  public void WriteSimpleDot(
+    string fileName,
+    IEnumerable<ProjectRef> references,
+    bool horizontal = false)
+  {
+    using var dotWriter = new DotFileWriter(
+      fileName,
+      true,
+      horizontal,
+      null);
+    // names of referenced projects (nodes)
+    var projects = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    // the references we can use
+    var approvedRefs = new List<ProjectRef>();
+    foreach(var reference in references)
+    {
+      var src = reference.SourceProject;
+      var tgt = reference.TargetProject;
+      if(ProjectNames.Contains(src) && ProjectNames.Contains(tgt))
+      {
+        approvedRefs.Add(reference);
+        projects.Add(src);
+        projects.Add(tgt);
+      }
+    }
+    foreach(var project in projects)
+    {
+      dotWriter.AddNode(
+        project, []);
+    }
+    foreach(var reference in approvedRefs)
+    {
+      dotWriter.AddEdge(
+        reference.SourceProject, reference.TargetProject, false, null);
+    }
+  }
 }

@@ -124,6 +124,13 @@ let private runScan o =
       csv.WriteLine($"{r.SourceProject},{r.TargetProject},{r.RefType},{r.IsInternal}")
   referenceCsvName |> finishFile
 
+  let simpleDotName = $"{o.Tag}.basic.dot"
+  do
+    let tmpName = simpleDotName + ".tmp"
+    projectView.WriteSimpleDot(tmpName, internalReferences, true)
+  simpleDotName |> finishFile
+  cp $"   Reminder: use \fydot -Tsvg -O {simpleDotName}\f0 to generate SVG from this file"
+
   cp ""
   0
 
