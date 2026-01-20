@@ -19,6 +19,8 @@ let rec run arglist =
     0  // program return status code to the operating system; 0 == "OK"
   | "sln" :: rest ->
     rest |> AppSln.run
+  | "scan" :: rest ->
+    rest |> AppScan.run
   | x :: _ ->
     cp $"\frUnrecognized subcommand '\fy{x}\fr'\f0."
     cp ""
