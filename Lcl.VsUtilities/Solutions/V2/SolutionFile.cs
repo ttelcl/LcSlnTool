@@ -12,6 +12,8 @@ using System.Threading.Tasks;
 
 using Newtonsoft.Json;
 
+using Lcl.VsUtilities.VirtualPaths;
+
 namespace Lcl.VsUtilities.Solutions.V2;
 
 /// <summary>
@@ -27,29 +29,36 @@ public class SolutionFile
   /// <param name="fileName">
   /// The path to a solution file
   /// </param>
-  /// <param name="prefix">
-  /// Optional: a prefix (root folder) to the full solution file path that will be
-  /// stripped off in UI when describing the "full" name of the file
+  /// <param name="virtualPathDb">
+  /// An optional <see cref="VirtualPathDb"/> instance. If given, paths in this object are
+  /// mapped to virtual paths.
   /// </param>
   public SolutionFile(
     string fileName,
-    string? prefix = null)
+    VirtualPathDb? virtualPathDb)
   {
     _projectFiles = [];
+    VpDb = virtualPathDb;
     RecognizedProjects = _projectFiles.AsReadOnly();
     FullName = Path.GetFullPath(fileName);
-    if(String.IsNullOrEmpty(prefix))
+    if(virtualPathDb == null)
     {
       Prefix = String.Empty;
+      VPath = null;
     }
     else
     {
-      prefix = Path.GetFullPath(prefix);
-      if(!prefix.EndsWith(Path.DirectorySeparatorChar))
+      VPath = virtualPathDb.MatchPath(FullName);
+      if(VPath == null)
       {
-        prefix += Path.DirectorySeparatorChar;
+        throw new InvalidOperationException(
+          $"Solution file is not in any defined virtual path: {FullName}");
       }
-      Prefix = prefix;
+      else
+      {
+        var def = virtualPathDb.GetDefinition(VPath);
+        Prefix = def.Prefix;
+      }
     }
     if(FullName.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase))
     {
@@ -63,42 +72,42 @@ public class SolutionFile
       Path.GetFileNameWithoutExtension(FullName).Replace(' ', '-');
   }
 
-  /// <summary>
-  /// JSON constructor
-  /// </summary>
-  /// <param name="id"></param>
-  /// <param name="fullpath"></param>
-  /// <param name="uiname"></param>
-  /// <param name="prefix"></param>
-  /// <param name="index">
-  /// Ignored: <see cref="Index"/> is initialized from <paramref name="id"/>,
-  /// but passing it here prevents the deserializer from using the setter.
-  /// </param>
-  [JsonConstructor]
-  public SolutionFile(
-    string id,
-    string fullpath,
-    string uiname,
-    string prefix = "",
-    int index = 0) // not actually used; Index is initialized from "id"
-  {
-    _projectFiles = [];
-    RecognizedProjects = _projectFiles.AsReadOnly();
-    var idparts = id.Split('#');
-    if(idparts.Length == 2)
-    {
-      SolutionName = idparts[0];
-      Index = Int32.Parse(idparts[1]);
-    }
-    else
-    {
-      SolutionName = id;
-      Index = 0;
-    }
-    FullName = fullpath;
-    UiFullName = uiname;
-    Prefix = prefix;
-  }
+  ///// <summary>
+  ///// JSON constructor
+  ///// </summary>
+  ///// <param name="id"></param>
+  ///// <param name="fullpath"></param>
+  ///// <param name="uiname"></param>
+  ///// <param name="prefix"></param>
+  ///// <param name="index">
+  ///// Ignored: <see cref="Index"/> is initialized from <paramref name="id"/>,
+  ///// but passing it here prevents the deserializer from using the setter.
+  ///// </param>
+  //[JsonConstructor]
+  //public SolutionFile(
+  //  string id,
+  //  string fullpath,
+  //  string uiname,
+  //  string prefix = "",
+  //  int index = 0) // not actually used; Index is initialized from "id"
+  //{
+  //  _projectFiles = [];
+  //  RecognizedProjects = _projectFiles.AsReadOnly();
+  //  var idparts = id.Split('#');
+  //  if(idparts.Length == 2)
+  //  {
+  //    SolutionName = idparts[0];
+  //    Index = Int32.Parse(idparts[1]);
+  //  }
+  //  else
+  //  {
+  //    SolutionName = id;
+  //    Index = 0;
+  //  }
+  //  FullName = fullpath;
+  //  UiFullName = uiname;
+  //  Prefix = prefix;
+  //}
 
   /// <summary>
   /// An identifier, generated from <see cref="SolutionName"/> and
@@ -113,6 +122,21 @@ public class SolutionFile
   /// </summary>
   [JsonProperty("fullpath")]
   public string FullName { get; }
+
+  /// <summary>
+  /// Only serialize <see cref="FullName"/> if there is no <see cref="VPath"/>.
+  /// </summary>
+  /// <returns></returns>
+  public bool ShouldSerializeFullName()
+  {
+    return VPath == null;
+  }
+
+  /// <summary>
+  /// The virtual path to the solution file, if defined
+  /// </summary>
+  [JsonProperty("vpath")]
+  public VirtualPath? VPath { get; }
 
   /// <summary>
   /// The solution file name with path and extension removed and spaces
@@ -139,10 +163,25 @@ public class SolutionFile
   public string Prefix { get; }
 
   /// <summary>
+  /// Only serialize prefix if there is no virtual path
+  /// </summary>
+  /// <returns></returns>
+  public bool ShouldSerializePrefix()
+  {
+    return VPath == null;
+  }
+
+  /// <summary>
   /// An index to disambiguate conflicting names
   /// </summary>
   [JsonProperty("index")]
   public int Index { get; set; }
+
+  /// <summary>
+  /// The virtual path database in use, if any
+  /// </summary>
+  [JsonIgnore]
+  public VirtualPathDb? VpDb { get; }
 
   /// <summary>
   /// Controls whether to serialize the <see cref="Index"/> field

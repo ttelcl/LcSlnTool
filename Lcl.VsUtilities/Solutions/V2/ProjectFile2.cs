@@ -10,6 +10,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using Lcl.VsUtilities.VirtualPaths;
+
 using Newtonsoft.Json;
 
 namespace Lcl.VsUtilities.Solutions.V2;
@@ -21,19 +23,21 @@ namespace Lcl.VsUtilities.Solutions.V2;
 public class ProjectFile2
 {
   /// <summary>
-  /// Deserialization constructor. Use <see cref="TryCreate"/> to invoke
-  /// in actual creation situations.
+  /// Originally the Deserialization constructor.
+  /// Use <see cref="TryCreate"/> to invoke in actual creation situations.
+  /// Deserialization is actually no longer supported.
   /// </summary>
-  [JsonConstructor]
   public ProjectFile2(
     string fullpath,
     string label,
-    string solutionid)
+    string solutionid,
+    VirtualPath vpath)
   {
-    FullPath = Path.GetFullPath(fullpath);
     Label = label;
     SolutionId = solutionid;
-    Name = Path.GetFileNameWithoutExtension(fullpath);
+    VPath = vpath;
+    Name = Path.GetFileNameWithoutExtension(VPath.VPath);
+    FullPath = fullpath;
   }
 
   /// <summary>
@@ -62,10 +66,24 @@ public class ProjectFile2
     {
       return null;
     }
+    var vpdb = sf.VpDb;
+    if(vpdb == null)
+    {
+      throw new NotSupportedException(
+        "The current implementation requires virtual path mappings");
+    }
+    var vpath = vpdb.MatchPath(projectPath);
+    if(vpath == null)
+    {
+      throw new NotSupportedException(
+        $"Expecting project file paths to be mappable to virtual paths. Cannot map '{projectPath}'");
+    }
     return new ProjectFile2(
       projectPath,
       spi.Label,
-      sf.Id);
+      sf.Id,
+      vpath
+    );
   }
 
   /// <summary>
@@ -82,16 +100,22 @@ public class ProjectFile2
   public string SolutionId { get; }
 
   /// <summary>
-  /// The full path (reconstructed from the solution path and relative project path)
+  /// The full path information, but mapped to a virtual path pair
   /// </summary>
-  [JsonProperty("fullpath")]
-  public string FullPath { get; }
+  [JsonProperty("vpath")]
+  public VirtualPath VPath { get; }
 
   /// <summary>
-  /// The project name, derived from <see cref="FullPath"/>
+  /// The project name, derived from <see cref="VPath"/>
   /// Expected to be the same as <see cref="Label"/>
   /// </summary>
   [JsonProperty("name")]
   public string Name { get; }
+
+  /// <summary>
+  /// The full path name. (Used in the process of linking references.)
+  /// </summary>
+  [JsonIgnore]
+  public string FullPath { get; }
 }
 

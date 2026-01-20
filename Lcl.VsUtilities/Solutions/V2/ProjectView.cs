@@ -62,7 +62,7 @@ public class ProjectView
       var pf3list = new List<ProjectFile3>();
       var projectsByNameAndFile =
         from pf2 in projectByName
-        group pf2 by pf2.FullPath.ToLowerInvariant();
+        group pf2 by pf2.VPath.VPath.ToLowerInvariant();
       foreach(var projectByNameAndFile in projectsByNameAndFile)
       {
         var p2list = projectByNameAndFile.ToList();
@@ -77,7 +77,8 @@ public class ProjectView
         var pf3 = new ProjectFile3(
           p2sample.FullPath,
           p2sample.Name,
-          solutionIds.Select(sid => solutions3[sid]));
+          solutionIds.Select(sid => solutions3[sid]),
+          p2sample.VPath);
         pf3list.Add(pf3);
       }
       projects3.Add(pf3list[0].Name, pf3list);
