@@ -11,6 +11,8 @@ using System.Threading.Tasks;
 
 using Newtonsoft.Json;
 
+using Lcl.VsUtilities.VirtualPaths;
+
 namespace Lcl.VsUtilities.Solutions.V2;
 
 /// <summary>
@@ -24,10 +26,12 @@ public class SolutionInfo3
   /// </summary>
   public SolutionInfo3(
     string fullpath,
-    string id)
+    string id,
+    VirtualPath? vpath)
   {
     FullPath = fullpath;
     Id = id;
+    VPath = vpath;
   }
 
   /// <summary>
@@ -38,7 +42,7 @@ public class SolutionInfo3
   /// <returns></returns>
   public static SolutionInfo3 FromSolutionFile(SolutionFile sf)
   {
-    return new SolutionInfo3(sf.FullName, sf.Id);
+    return new SolutionInfo3(sf.FullName, sf.Id, sf.VPath);
   }
 
   /// <summary>
@@ -53,4 +57,18 @@ public class SolutionInfo3
   [JsonProperty("fullpath")]
   public string FullPath { get; }
 
+  /// <summary>
+  /// The virtual description of <see cref="FullPath"/>
+  /// </summary>
+  [JsonProperty("vpath")]
+  public VirtualPath? VPath { get; }
+
+  /// <summary>
+  /// Only serialize <see cref="FullPath"/> if <see cref="VPath"/> is missing
+  /// </summary>
+  /// <returns></returns>
+  public bool ShouldSerializeFullPath()
+  {
+    return VPath == null;
+  }
 }

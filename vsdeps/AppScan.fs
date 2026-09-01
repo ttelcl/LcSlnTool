@@ -9,6 +9,7 @@ open XsvLib
 
 open Lcl.VsUtilities.Solutions
 open Lcl.VsUtilities.Solutions.V2
+open Lcl.VsUtilities.VirtualPaths
 
 open ColorPrint
 open CommonTools
@@ -19,9 +20,19 @@ type private ScanOptions = {
 }
 
 let private runScan o =
-  let prefix = Environment.CurrentDirectory
+  let vpdb = new VirtualPathDb("<root>", Environment.CurrentDirectory)
+  vpdb.RegisterDefinition($"<{o.Tag}>", o.Root) |> ignore
+
+  let vpdbName = $"{o.Tag}.virtual-path-db.out.json"
+  do
+    use jw = vpdbName |> startFile
+    let json = JsonConvert.SerializeObject(vpdb, Formatting.Indented)
+    jw.WriteLine(json)
+  vpdbName |> finishFile
+
+
   let slnFileFromFile (fileName:string) =
-    new SolutionFile(fileName, prefix)
+    new SolutionFile(fileName, vpdb)
   let slnFiles =
     FileFinder.FindFilesRecursive(o.Root, "*.sln")
     |> Seq.map slnFileFromFile
@@ -29,7 +40,7 @@ let private runScan o =
     |> Array.sortBy(fun sf -> $"{sf.SolutionName} ! {sf.UiFullName}".ToLowerInvariant())
   
   let solutionView =
-    SolutionView.FromSolutions(slnFiles, true)
+    SolutionView.FromSolutions(slnFiles, true, vpdb.Paths)
   
   let supportedSolutions = solutionView.Solutions |> Seq.toArray
   cp $"Found \fc{supportedSolutions.Length}\f0 / \fb{slnFiles.Length}\f0 solution files:"
@@ -71,9 +82,9 @@ let private runScan o =
   let projectsCsvName = $"{o.Tag}.projects.csv"
   do
     use csv = projectsCsvName |> startFile
-    csv.WriteLine("label,solution,projectfile,name");
+    csv.WriteLine("label,solution,root,projectfile,name");
     for pf2 in projects do
-      csv.WriteLine($"{pf2.Label},{pf2.SolutionId},{pf2.FullPath},{pf2.Name}")
+      csv.WriteLine($"{pf2.Label},{pf2.SolutionId},{pf2.VPath.RootKey},{pf2.VPath.VPath},{pf2.Name}")
   projectsCsvName |> finishFile
 
   cp "Validating project name uniqueness"
@@ -88,7 +99,7 @@ let private runScan o =
         let pathlist = String.Join(", ", paths)
         cp $"\foNon-unique project name '\fr{label}\fo':\f0 {pathlist}\f0."
       else
-        let (path, p3) = projectsByLabelAndPath[0]
+        let (_, p3) = projectsByLabelAndPath[0]
         let solutions = p3 |> Array.map (fun pf2 -> pf2.SolutionId)
         let slnlist = String.Join("\f0, \fc", solutions)
         cp $"Project '\fg{label}\f0' is referenced from \fb{p3.Length}\f0 solutions: \fc{slnlist}\f0."

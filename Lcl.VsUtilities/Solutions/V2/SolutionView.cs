@@ -23,10 +23,12 @@ public class SolutionView
   /// Create a new SolutionView (deserialization constructor)
   /// </summary>
   public SolutionView(
-    IReadOnlyDictionary<string, IReadOnlyList<SolutionFile>> solutions)
+    IReadOnlyDictionary<string, IReadOnlyList<SolutionFile>> solutions,
+    IReadOnlyDictionary<string, string>? virtualroots = null)
   {
     SolutionMap = new Dictionary<string, IReadOnlyList<SolutionFile>>(
       solutions, StringComparer.OrdinalIgnoreCase);
+    VirtualRoots = virtualroots?.ToDictionary();
   }
 
   /// <summary>
@@ -40,9 +42,11 @@ public class SolutionView
   /// nascent <see cref="SolutionFile"/> instances that still need
   /// Loading and Linking.
   /// </param>
+  /// <param name="virtualroots"></param>
   public static SolutionView FromSolutions(
     IEnumerable<SolutionFile> solutionFiles,
-    bool prepare)
+    bool prepare,
+    IReadOnlyDictionary<string, string>? virtualroots = null)
   {
     if(prepare)
     {
@@ -84,7 +88,22 @@ public class SolutionView
       grouped.ToDictionary(
         g => g.Key, g => (IReadOnlyList<SolutionFile>)(g.ToList()),
         StringComparer.OrdinalIgnoreCase);
-    return new SolutionView(map);
+    return new SolutionView(map, virtualroots);
+  }
+
+  /// <summary>
+  /// The virtual root mappings, if any
+  /// </summary>
+  [JsonProperty("virtualroots")]
+  public IReadOnlyDictionary<string, string>? VirtualRoots { get; }
+
+  /// <summary>
+  /// Whether or not to serialize virtual root mappings
+  /// </summary>
+  /// <returns></returns>
+  public bool ShouldSerializeVirtualRoots()
+  {
+    return VirtualRoots != null && VirtualRoots.Count > 0;
   }
 
   /// <summary>
