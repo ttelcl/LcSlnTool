@@ -130,9 +130,9 @@ let private runScan o =
   let referenceCsvName = $"{o.Tag}.references.csv"
   do
     use csv = referenceCsvName |> startFile
-    csv.WriteLine("source,target,type,intern");
+    csv.WriteLine("source,target,type,intern,version");
     for r in references do
-      csv.WriteLine($"{r.SourceProject},{r.TargetProject},{r.RefType},{r.IsInternal}")
+      csv.WriteLine($"{r.SourceProject},{r.TargetProject},{r.RefType},{r.IsInternal},{r.Version}")
   referenceCsvName |> finishFile
 
   let simpleDotName = $"{o.Tag}.basic.dot"

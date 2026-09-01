@@ -4,9 +4,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
@@ -29,12 +31,14 @@ public class ProjectRef
     string source,
     string target,
     [JsonProperty("type")] ReferenceType refType,
-    [JsonProperty("intern")] bool isInternal = false)
+    [JsonProperty("intern")] bool isInternal = false,
+    string version = "")
   {
     SourceProject = source;
     TargetProject = target;
     RefType = refType;
     IsInternal = isInternal;
+    Version = version;
   }
 
   /// <summary>
@@ -63,6 +67,13 @@ public class ProjectRef
   /// </summary>
   [JsonProperty("intern")]
   public bool IsInternal { get; set; }
+
+  /// <summary>
+  /// The version of the target, if known, an empty string otherwise
+  /// </summary>
+  [JsonProperty("version", DefaultValueHandling = DefaultValueHandling.Ignore)]
+  [DefaultValue("")]
+  public string Version { get; }
 
   /// <summary>
   /// Find references in the given source project file
@@ -110,38 +121,45 @@ public class ProjectRef
     var projectReferences = root.Select("//msb:ProjectReference", nsm);
     foreach(XPathNavigator node in projectReferences)
     {
-      //var include = node.GetAttribute("Include", "");
       var name = (string)node.Evaluate("string(msb:Name)", nsm);
-      name = name.Split(',')[0]; // ignore version details (rarely occurs)
+      var an = new AssemblyName(name);
+      name = an.Name ?? name;
+      var version = an.Version?.ToString() ?? String.Empty; // usually Version==null, so result is String.Empty
       var pr = new ProjectRef(
         sourceName,
         name,
         ReferenceType.Project,
-        internalNames.Contains(name));
+        internalNames.Contains(name),
+        version);
       yield return pr;
     }
     var packageReferences = root.Select("//msb:PackageReference", nsm);
     foreach(XPathNavigator node in packageReferences)
     {
       var name = node.GetAttribute("Include", "");
-      name = name.Split(',')[0];
+      name = name.Split(',')[0]; // not expecting anything more. Expect a <Version> child element instead
+      var version = (string)node.Evaluate("string(msb:Version)", nsm);
       var pr = new ProjectRef(
         sourceName,
         name,
         ReferenceType.Package,
-        internalNames.Contains(name));
+        internalNames.Contains(name),
+        version);
       yield return pr;
     }
     var plainReferences = root.Select("//msb:Reference", nsm);
     foreach(XPathNavigator node in plainReferences)
     {
       var name = node.GetAttribute("Include", "");
-      name = name.Split(',')[0];
+      var an = new AssemblyName(name);
+      name = an.Name ?? name;
+      var version = an.Version?.ToString() ?? string.Empty;
       var pr = new ProjectRef(
         sourceName,
         name,
         ReferenceType.Plain,
-        internalNames.Contains(name));
+        internalNames.Contains(name),
+        version);
       yield return pr;
     }
   }
@@ -169,22 +187,26 @@ public class ProjectRef
         name = Path.GetFileNameWithoutExtension(include);
       }
       name = name.Split(',')[0]; // just in case
+      var version = (string?)node.Evaluate("string(Version)", nsm) ?? "";
       var pr = new ProjectRef(
         sourceName,
         name,
         ReferenceType.Project,
-        internalNames.Contains(name));
+        internalNames.Contains(name),
+        version);
       yield return pr;
     }
     var packageReferences = root.Select("//PackageReference");
     foreach(XPathNavigator node in packageReferences)
     {
       var name = node.GetAttribute("Include", "");
+      var version = node.GetAttribute("Version", "");
       var pr = new ProjectRef(
         sourceName,
         name,
         ReferenceType.Package,
-        internalNames.Contains(name));
+        internalNames.Contains(name),
+        version);
       yield return pr;
     }
     // there are no plain references, isn't it?
